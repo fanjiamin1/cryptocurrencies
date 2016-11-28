@@ -12,4 +12,4 @@ except:
     raise
 print("Connected!")
 while 1:
-    bob_socket.sendall(input("Message: "))
+    bob_socket.sendall(bytes(input("Message: "), "utf-8"))

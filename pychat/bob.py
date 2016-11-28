@@ -20,13 +20,10 @@ print('Bob is listening')
 while 1:
 	conn, addr = s.accept()
 	print('Bob is connected with ' + addr[0] + ':' + str(addr[1]))
-
 	data = conn.recv(1024)
-	reply = 'Received' + data
 	if not data:
 		break
-
-	conn.sendall(reply)
+	print("Received", data.decode("utf-8"))
 
 conn.close()
 s.close()
