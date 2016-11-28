@@ -1,5 +1,9 @@
-def encrypt(message):
-    return bytes(message, "utf-8")
+ENCODING = "utf-8"
 
-def decrypt(ciphertext):
-    return ciphertext.decode("utf-8")
+def encrypt(key, cleartext):
+    ciphertext = bytes(byte^key for byte in bytes(cleartext, ENCODING))
+    return ciphertext
+
+def decrypt(key, ciphertext):
+	cleartext = bytes(byte^key for byte in ciphertext).decode(ENCODING)
+	return cleartext
