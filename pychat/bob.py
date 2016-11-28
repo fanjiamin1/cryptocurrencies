@@ -20,9 +20,10 @@ def bob():
     s.listen(2)
     print('Bob is listening')
 
+    conn, addr = s.accept()
+    print('Bob is connected with ' + addr[0] + ':' + str(addr[1]))
+
     while 1:
-        conn, addr = s.accept()
-        print('Bob is connected with ' + addr[0] + ':' + str(addr[1]))
         data = conn.recv(1024)
         if not data:
             break
