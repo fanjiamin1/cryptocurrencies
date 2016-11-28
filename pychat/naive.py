@@ -5,5 +5,5 @@ def encrypt(key, cleartext):
     return ciphertext
 
 def decrypt(key, ciphertext):
-	cleartext = bytes(byte^key for byte in ciphertext).decode(ENCODING)
-	return cleartext
+    cleartext = bytes(byte^key for byte in ciphertext).decode(ENCODING)
+    return cleartext
