@@ -1,8 +1,10 @@
 import socket
 import sys
+import pychat
 
 HOST = ''
 PORT = 8898
+KEY = 89
 
 def bob():
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -24,7 +26,7 @@ def bob():
 		data = conn.recv(1024)
 		if not data:
 			break
-		print("Received", data.decode("utf-8"))
+		print("Received", pychat.decrypt(KEY, data))
 
 	conn.close()
 	s.close()
