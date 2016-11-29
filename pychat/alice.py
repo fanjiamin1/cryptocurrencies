@@ -2,17 +2,32 @@ import socket
 import sys
 import pychat
 
-def alice():
+
+class Alice():
+    def __init__(self):
+        self.key = None
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    def connect(self, ip_address, port):
+        self.socket.connect((ip_address, port))
+
+    def send(self, message):
+        bob_socket.sendall(pychat.encrypt(self.key, message))
+
+
+if __name__ == "__main__":
+    args = sys.argv[1:]
     try:
-        bob_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         bob_ip = input("IP address: ")
         bob_port = int(input("Socket: "))
         key = int(input("Encryption key: "))
-        print("Connecting to {} on socket {}".format(repr(bob_ip), repr(bob_port)))
-        bob_socket.connect((bob_ip, bob_port))
-    except:
-        print("No good")
-        raise
-    print("Connected!")
+    except KeyboardInterrupt:
+        print()
+        print("No chatting with Bob today... </3")
+        sys.exit()
+    print("Connecting to {} on socket {}".format(bob_ip, bob_port))
+    alice = Alice()
+    alice.key = key
+    alice.connect(bob_ip, bob_port)
     while 1:
-        bob_socket.sendall(pychat.encrypt(key, input("Message: ")))
+        alice.send(input("Message: "))
