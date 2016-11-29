@@ -36,10 +36,10 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     try:
         port = int(input("Port: "))
-        key = int(input("Encryption key: "))
+        key = input("Encryption key: ")
     except KeyboardInterrupt:
         print()
         print("Can't get too hung up on Alice...")
         sys.exit()
-    bob = Bob(port, key)
+    bob = Bob(port)  # key variable unused
     bob.start()

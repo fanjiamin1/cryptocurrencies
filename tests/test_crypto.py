@@ -1,3 +1,4 @@
+import pytest
 from pychat.crypto import Naive, Vigenere, AES
 
 
@@ -20,6 +21,7 @@ def test_aes_encrypt_decrypt():
     cipher = AES(key)
     assert cipher.decrypt(cipher.encrypt(message)) == message
 
+@pytest.mark.xfail
 def test_aes_encrypt_decrypt():
     key = "Non sixteen character key"
     message = "A hopefully non sixteen character message"

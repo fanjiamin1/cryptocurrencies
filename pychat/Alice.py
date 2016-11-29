@@ -28,8 +28,8 @@ if __name__ == "__main__":
         print()
         print("No chatting with Bob today... </3")
         sys.exit()
-    print("Connecting to {} on port {}".format(bob_ip, bob_port))
-    alice = Alice(key)
+    print("Attempting to connect to {} on port {}".format(bob_ip, bob_port))
+    alice = Alice()  # key variable unused
     try:
         alice.connect(bob_ip, bob_port)
     except:
