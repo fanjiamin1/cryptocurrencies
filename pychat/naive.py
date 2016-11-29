@@ -1,5 +1,3 @@
-
-
 ENCODING = "utf-8"
 
 
