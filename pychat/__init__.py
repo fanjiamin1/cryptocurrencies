@@ -6,6 +6,7 @@ from .bob import Bob
 #from .cipher import Cipher
 from .naive import Naive
 from .vigenere import Vigenere
+from .aes import AES
 
 # Other
 from .misc import *

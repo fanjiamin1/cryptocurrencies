@@ -1,14 +1,16 @@
 import socket
 import sys
-import pychat
+
+from .aes import AES as Cipher
 
 
 HOST = ""
 
+
 class Bob:
-    def __init__(self, port, key=3):
+    def __init__(self, port, key="0123456789defabc"):
         self.key = key
-        self.cipher = pychat.Vigenere(key)
+        self.cipher = Cipher(self.key)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind((HOST, port))
 
