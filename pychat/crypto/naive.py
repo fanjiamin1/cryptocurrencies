@@ -1,7 +1,10 @@
+from pychat.crypto import Cipher
+
+
 ENCODING = "utf-8"
 
 
-class Naive():
+class Naive(Cipher):
     def __init__(self, key):
         self.key = key
 
