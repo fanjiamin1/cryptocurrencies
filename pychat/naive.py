@@ -1,4 +1,4 @@
-ENCODING = "utf-8"
+from pychat.misc import ENCODING
 
 
 class Naive:
