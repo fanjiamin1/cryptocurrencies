@@ -1,5 +1,5 @@
-from pychat.misc import char2byte, byte2char
-from pychat.misc import ENCODING, MAX_BYTE
+from pychat.misc.encoding_tools import char2byte, byte2char
+from pychat.misc.encoding_tools import ENCODING, MAX_BYTE
 
 
 class Vigenere:

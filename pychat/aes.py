@@ -1,6 +1,6 @@
 import Crypto.Cipher
 from Crypto import Random
-from pychat.misc import ENCODING
+from pychat.misc.encoding_tools import ENCODING
 
 
 class AES:

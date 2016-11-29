@@ -1,4 +1,4 @@
-from pychat.misc import ENCODING
+from pychat.misc.encoding_tools import ENCODING
 
 
 class Naive:

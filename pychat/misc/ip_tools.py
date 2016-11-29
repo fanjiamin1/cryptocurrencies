@@ -1,10 +1,6 @@
 import netifaces
 
 
-ENCODING = "utf-8"
-MAX_BYTE = 256
-
-
 def get_local_ip():
     for interface_name in netifaces.interfaces():
         try:
@@ -17,6 +13,7 @@ def get_local_ip():
             # TODO: Do something smart
             raise
     raise RuntimeError("Local IP not found")
+
 
 def get_broadcast_ip():
     for interface_name in netifaces.interfaces():
@@ -31,9 +28,3 @@ def get_broadcast_ip():
             # TODO: Do something smart
             raise
     raise RuntimeError("Broadcast IP not found")
-
-def char2byte(character):
-    return ord(character) % MAX_BYTE
-
-def byte2char(byte):
-    return chr(byte)
