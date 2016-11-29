@@ -1,10 +1,10 @@
-import netifaces
+import netifaces as _nif
 
 
 def get_local_ip():
-    for interface_name in netifaces.interfaces():
+    for interface_name in _nif.interfaces():
         try:
-            addresses = netifaces.ifaddresses(interface_name)[netifaces.AF_INET]
+            addresses = _nif.ifaddresses(interface_name)[_nif.AF_INET]
             for address in addresses:
                 ip = address["addr"]
                 if ip != "127.0.0.1":
@@ -16,9 +16,9 @@ def get_local_ip():
 
 
 def get_broadcast_ip():
-    for interface_name in netifaces.interfaces():
+    for interface_name in _nif.interfaces():
         try:
-            addresses = netifaces.ifaddresses(interface_name)[netifaces.AF_INET]
+            addresses = _nif.ifaddresses(interface_name)[_nif.AF_INET]
             for address in addresses:
                 try:
                     return address["broadcast"]
