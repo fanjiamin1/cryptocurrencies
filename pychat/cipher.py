@@ -3,9 +3,13 @@ import abc
 
 class Cipher(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def encrypt(self, cleartext):
+    def salt(size):
         pass
 
     @abc.abstractmethod
-    def decrypt(self, ciphertext):
+    def myEncrypt(self, cleartext):
+        pass
+
+    @abc.abstractmethod
+    def myDecrypt(self, ciphertext):
         pass
