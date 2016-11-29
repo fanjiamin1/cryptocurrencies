@@ -19,13 +19,13 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     try:
         bob_ip = input("IP address: ")
-        bob_port = int(input("Socket: "))
+        bob_port = int(input("Port: "))
         key = int(input("Encryption key: "))
     except KeyboardInterrupt:
         print()
         print("No chatting with Bob today... </3")
         sys.exit()
-    print("Connecting to {} on socket {}".format(bob_ip, bob_port))
+    print("Connecting to {} on port {}".format(bob_ip, bob_port))
     alice = Alice()
     alice.key = key
     alice.connect(bob_ip, bob_port)
