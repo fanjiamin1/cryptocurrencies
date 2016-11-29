@@ -2,7 +2,7 @@ import socket
 import sys
 
 
-from .AES import AES as Cipher
+from pychat.crypto import AES as Cipher
 
 
 class Alice():
