@@ -1,4 +1,4 @@
-from pychat import Naive, Vigenere, AES
+from pychat.crypto import Naive, Vigenere, AES
 
 
 message = "Hello, world!"
