@@ -15,8 +15,13 @@ def test_vigenere_encrypt_decrypt():
     assert cipher.decrypt(cipher.encrypt(message)) == message
 
 def test_aes_encrypt_decrypt():
-    # TODO: Proper non-sixteen character test
     key = "sixteen char key"
     message = "Attack FLAT n3rd"
+    cipher = AES(key)
+    assert cipher.decrypt(cipher.encrypt(message)) == message
+
+def test_aes_encrypt_decrypt():
+    key = "Non sixteen character key"
+    message = "A hopefully non sixteen character message"
     cipher = AES(key)
     assert cipher.decrypt(cipher.encrypt(message)) == message
