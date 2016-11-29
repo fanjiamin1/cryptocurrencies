@@ -1,12 +1,14 @@
 import socket
 import sys
-import pychat
+
+
+from .aes import AES as Cipher
 
 
 class Alice():
-    def __init__(self, key=3):
+    def __init__(self, key="0123456789defabc"):
         self.key = key
-        self.cipher = pychat.Vigenere(key)
+        self.cipher = Cipher(self.key)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def connect(self, ip_address, port):
