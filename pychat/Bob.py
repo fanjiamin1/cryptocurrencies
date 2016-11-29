@@ -1,7 +1,7 @@
 import socket
 import sys
 
-from .aes import AES as Cipher
+from .AES import AES as Cipher
 
 
 HOST = ""
