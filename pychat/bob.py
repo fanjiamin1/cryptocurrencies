@@ -2,32 +2,42 @@ import socket
 import sys
 import pychat
 
-HOST = ''
-PORT = 8898
-KEY = 89
 
-def bob():
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    print('Server socket, go Bob!')
+HOST = ""
 
+class Bob:
+    def __init__(self, port, key=3):
+        self.key = key
+        self.cipher = pychat.Vigenere(key)
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.bind((HOST, port))
+
+    def start(self):
+        try:
+            while 1:
+                print("Started listening...")
+                self.socket.listen(2)
+                connection, address = self.socket.accept()
+                print("Incoming connection from", address)
+                while 1:
+                    data = connection.recv(1024)
+                    if not data:
+                        break
+                    print("Alice:", self.cipher.decrypt(data))
+                print("She hung up!")
+        finally:
+            connection.close()
+            self.socket.close()
+
+
+if __name__ == "__main__":
+    args = sys.argv[1:]
     try:
-        s.bind((HOST, PORT))
-    except socket.error as msg:
-        print(str(msg[0]))
+        port = int(input("Port: "))
+        key = int(input("Encryption key: "))
+    except KeyboardInterrupt:
+        print()
+        print("Can't get too hung up on Alice...")
         sys.exit()
-
-    print('Bob is binded')
-    s.listen(2)
-    print('Bob is listening')
-
-    conn, addr = s.accept()
-    print('Bob is connected with ' + addr[0] + ':' + str(addr[1]))
-
-    while 1:
-        data = conn.recv(1024)
-        if not data:
-            break
-        print("Received", pychat.decrypt(KEY, data))
-
-    conn.close()
-    s.close()
+    bob = Bob(port, key)
+    bob.start()

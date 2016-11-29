@@ -1,6 +1,6 @@
 # People
 from .alice import Alice
-from .bob import bob
+from .bob import Bob
 
 # Ciphers
 #from .cipher import Cipher
