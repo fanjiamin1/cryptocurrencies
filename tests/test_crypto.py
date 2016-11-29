@@ -1,4 +1,4 @@
-from pychat.crypto import Naive
+from pychat import Naive
 
 
 def test_naive_encrypt_decrypt():

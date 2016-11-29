@@ -1,4 +1,4 @@
-from pychat.crypto import Cipher
+from pychat import Cipher
 
 
 ENCODING = "utf-8"
