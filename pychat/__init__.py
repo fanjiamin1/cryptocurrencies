@@ -1,10 +1,11 @@
 # People
 from .alice import Alice
-from .bob import bob
+from .bob import Bob
 
 # Ciphers
-from .naive import Naive
 #from .cipher import Cipher
+from .naive import Naive
+from .vigenere import Vigenere
 
 # Other
 from .misc import *

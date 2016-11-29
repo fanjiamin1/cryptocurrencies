@@ -1,11 +1,11 @@
-from abc import ABCMeta, abstractmethod
+import abc
 
 
-class Cipher(metaclass=ABCMeta):
-    @abstractmethod
+class Cipher(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
     def encrypt(self, cleartext):
         pass
 
-    @abstractmethod
+    @abc.abstractmethod
     def decrypt(self, ciphertext):
         pass

@@ -4,30 +4,38 @@ import pychat
 
 
 class Alice():
-    def __init__(self):
-        self.key = None
+    def __init__(self, key=3):
+        self.key = key
+        self.cipher = pychat.Vigenere(key)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def connect(self, ip_address, port):
         self.socket.connect((ip_address, port))
 
     def send(self, message):
-        bob_socket.sendall(pychat.encrypt(self.key, message))
+        self.socket.sendall(self.cipher.encrypt(message))
 
 
 if __name__ == "__main__":
     args = sys.argv[1:]
     try:
         bob_ip = input("IP address: ")
-        bob_port = int(input("Socket: "))
-        key = int(input("Encryption key: "))
+        bob_port = int(input("Port: "))
+        key = input("Encryption key: ")
     except KeyboardInterrupt:
         print()
         print("No chatting with Bob today... </3")
         sys.exit()
-    print("Connecting to {} on socket {}".format(bob_ip, bob_port))
-    alice = Alice()
-    alice.key = key
-    alice.connect(bob_ip, bob_port)
-    while 1:
-        alice.send(input("Message: "))
+    print("Connecting to {} on port {}".format(bob_ip, bob_port))
+    alice = Alice(key)
+    try:
+        alice.connect(bob_ip, bob_port)
+    except:
+        print("Couldn't get a connection with Bob...")
+        sys.exit()
+    try:
+        while 1:
+            alice.send(input("Message: "))
+    except KeyboardInterrupt:
+        print()
+        print("That's enough chatting for now")
