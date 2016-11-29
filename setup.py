@@ -9,6 +9,6 @@ setup(
     name = "pychat",
     version = "0.0.1",
     packages=["pychat"],
-    install_requires=["netifaces"],
+    install_requires=["netifaces", "crypto"],
     long_description=read("README.md"),
 )
