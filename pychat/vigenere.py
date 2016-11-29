@@ -7,6 +7,7 @@ alphabet="abcdefghijklmnopqrstuvwxyz"
 
 def keygen():
     pass
+
 def encrypt(message, key):
     output=''
     for i in range(len(message)):
@@ -28,3 +29,4 @@ message='helloworld'
 print('message: '+ message)
 print(encrypt(message,key))
 print(decrypt(encrypt(message,key),key))
+print(encrypt('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',key))
