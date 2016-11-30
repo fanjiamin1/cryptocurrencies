@@ -1,8 +1,9 @@
 from pychat.misc.encoding_tools import char2byte, byte2char
 from pychat.misc.encoding_tools import ENCODING, MAX_BYTE
+from pychat.crypto import Cipher
 
 
-class Vigenere:
+class Vigenere(Cipher):
     def __init__(self, key):
         self.key = [char2byte(character) for character in key]
 
