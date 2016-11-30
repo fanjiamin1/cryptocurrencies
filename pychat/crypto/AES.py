@@ -13,7 +13,10 @@ PADDING_CHARACTER = '\x80'
 class AES(Cipher):
     def __init__(self, key):
         self._key = bytes(key, ENCODING)
-        self._cipher = Crypto.Cipher.AES.new(self._key, BLOCK_SIZE)
+        self._cipher = Crypto.Cipher.AES.new(
+                                              self._key
+                                            , Crypto.Cipher.AES.MODE_ECB
+                                            )
         self._random = Random.new()
 
     def _get_salt(self):
