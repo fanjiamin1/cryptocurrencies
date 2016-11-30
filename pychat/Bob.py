@@ -28,7 +28,10 @@ class Bob:
                     print("Alice:", self.cipher.decrypt(data))
                 print("She hung up!")
         finally:
-            connection.close()
+            try:
+                connection.close()
+            except UnboundLocalError:
+                pass
             self.socket.close()
 
 
@@ -37,9 +40,9 @@ if __name__ == "__main__":
     try:
         port = int(input("Port: "))
         key = input("Encryption key: ")
+        bob = Bob(port)  # key variable unused
+        bob.start()
     except KeyboardInterrupt:
         print()
         print("Can't get too hung up on Alice...")
         sys.exit()
-    bob = Bob(port)  # key variable unused
-    bob.start()
