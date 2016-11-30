@@ -1,13 +1,23 @@
-from Crypto.PublicKey import RSA
+import Crypto.PublicKey.RSA
+from pychat.crypto import Cipher
+from pychat.misc.encoding_tools import ENCODING
 
-newkey=RSA.generate(1024)
 
-message=b"hello world!"
+class RSA(Cipher):
+    def __init__(self, key):
+        self._key = Crypto.PublicKey.RSA.importKey(key)
 
-print(newkey.encrypt(message,b"I'm not sure why this argument isn't optional"))
+    @staticmethod
+    def generate_key(strength=0):
+        bits = 1024 + strength*256
+        return Crypto.PublicKey.RSA.generate(bits).exportKey()
 
-print(newkey.decrypt(newkey.encrypt(message,b'this feels silly')))
+    def encrypt(self, cleartext):
+        ciphertext, = self._key.encrypt( 
+                                         bytes(cleartext, ENCODING)
+                                       , b"Unused argument"
+                                       )
+        return ciphertext
 
-destination=open('key.txt','w')
-
-destination.write(str(newkey.exportKey("PEM")))
+    def decrypt(self, ciphertext):
+        return self._key.decrypt(ciphertext).decode(ENCODING)

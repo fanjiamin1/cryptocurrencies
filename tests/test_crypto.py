@@ -1,5 +1,5 @@
 import pytest
-from pychat.crypto import Naive, Vigenere, AES
+from pychat.crypto import Naive, Vigenere, AES, RSA
 
 
 message = "Hello, world!"
@@ -19,6 +19,12 @@ def test_aes_encrypt_decrypt():
     key = "sixteen char key"
     message = "Attack FLAT n3rd"
     cipher = AES(key)
+    assert cipher.decrypt(cipher.encrypt(message)) == message
+
+def test_rsa_encrypt_decrypt():
+    key = RSA.generate_key()
+    message = "Attack FLAT n3rd"
+    cipher = RSA(key)
     assert cipher.decrypt(cipher.encrypt(message)) == message
 
 @pytest.mark.xfail
