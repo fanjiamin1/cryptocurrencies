@@ -1,7 +1,8 @@
 from pychat.misc.encoding_tools import ENCODING
+from pychat.crypto import Cipher
 
 
-class Naive:
+class Naive(Cipher):
     def __init__(self, key):
         self.key = key
 
