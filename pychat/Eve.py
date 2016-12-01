@@ -1,7 +1,6 @@
 import socket
 import sys
 
-from pychat.crypto import AES as Cipher
 
 
 HOST = ""
