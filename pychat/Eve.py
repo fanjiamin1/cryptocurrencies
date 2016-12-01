@@ -31,7 +31,7 @@ class Eve:
                     data = connection.recv(1024)
                     if not data:
                         break
-                    outsocket.send(data)
+                    self.outsocket.send(data)
                     #open socket to second client and send data
                 print("Reflection complete")
         finally:
@@ -39,7 +39,8 @@ class Eve:
                 connection.close()
             except UnboundLocalError:
                 pass
-            self.socket.close()
+            self.insocket.close()
+            self.outsocket.close()
 
 
 if __name__ == "__main__":
