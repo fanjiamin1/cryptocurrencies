@@ -12,6 +12,7 @@ class Bob:
         self.key = key
         self.cipher = Cipher(self.key)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind((HOST, port))
 
     def start(self):
@@ -32,7 +33,8 @@ class Bob:
                 connection.close()
             except UnboundLocalError:
                 pass
-            self.socket.close()
+            self.socket.shutdown(socket.SHUT_RDWR)
+            #self.socket.close()
 
 
 if __name__ == "__main__":
