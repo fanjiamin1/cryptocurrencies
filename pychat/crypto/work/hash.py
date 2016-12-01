@@ -5,14 +5,16 @@ from os import urandom
 ZERO_BYTE = b'\x00'
 
 BIT_SIZE = 1
-SHAVE_AND_A_HAIRCUT = 2*BIT_SIZE
-NIBBLE = 2*SHAVE_AND_A_HAIRCUT
-BYTE_SIZE = 2*NIBBLE
-CHOMP_SIZE = 2*BYTE_SIZE
+SHAVE_AND_A_HAIRCUT = 2*BIT_SIZE  # 2
+NIBBLE = 2*SHAVE_AND_A_HAIRCUT  # 4
+BYTE_SIZE = 2*NIBBLE  # 8
+CHOMP_SIZE = 2*BYTE_SIZE  # 16
+DINNER_SIZE = 2*CHOMP_SIZE  # 32
 
 
 def hash(prefix, bits):
     assert len(prefix) == CHOMP_SIZE
+    assert 0 <= bits <= DINNER_SIZE
     # Create hash object for the prefix
     prefix_hash = sha256(prefix)
     if bits > BYTE_SIZE:
