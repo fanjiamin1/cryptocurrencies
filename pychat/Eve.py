@@ -10,7 +10,6 @@ HOST = ""
 class Eve:
     def __init__(self,inport,outport,ip_address):
         self.insocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        #presumably, we need to bind HOST to socket.servername()
         self.insocket.bind((HOST, inport))
         self.outsocket=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         self.connect(ip_address,outport)
@@ -46,20 +45,20 @@ class Eve:
 
 if __name__ == "__main__":
     args = sys.argv[1:]
-    if args[0] in ['help','-help','h','-h']:
+    if len(args) !=0 and args[0] in ['help','-help','h','-h']:
         print("\n This program takes 3 arguments, example call: python Eve.py in out ip \n"
                +"the program listens for traffic on the port 'in' and transmits any data recieved \n"
                +"to the ip address 'ip' on the port 'out'")
         sys.exit(1)
     try:
         if len(args)==3:
-            inport=args[0]
-            outport=args[1]
+            inport=int(args[0])
+            outport=int(args[1])
             target_ip=args[2]
         else:
             inport = int(input("Receiving Port: "))
             outport = int(input("Transmitting Port: "))
-            target_ip = int(input("Target IP address: "))
+            target_ip = (input("Target IP address: "))
         eve = Eve(inport,outport,target_ip)  # key variable unused
         eve.start()
         print('starting the looking glass')
