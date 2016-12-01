@@ -39,7 +39,6 @@ def hash(prefix, bits):
                 total_hash.update(suffix)
                 digest = total_hash.digest()
                 if all(byte == 0 for byte in digest[slice_index:]):
-                    print(digest[byte_index])
                     if digest[byte_index] % check_mod == 0:
                         return suffix
     else:
