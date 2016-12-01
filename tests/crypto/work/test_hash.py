@@ -1,4 +1,4 @@
-from pychat.crypto.work import hash as work
+from pychat.crypto.work import hash_work as work
 from hashlib import sha256
 
 

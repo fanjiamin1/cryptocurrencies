@@ -1,3 +1,6 @@
+import threading
+
+
 from hashlib import sha256
 from os import urandom
 
@@ -112,5 +115,9 @@ def _increment_byte_array(byte_array):
             index += 1
 
 
-#hash = _random_hash
-hash = _deterministic_hash
+def multithreaded_hash_work(prefix, bits):
+    pass
+
+
+#hash_work = _random_hash
+hash_work = _deterministic_hash

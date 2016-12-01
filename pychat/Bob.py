@@ -2,8 +2,9 @@ import socket
 import sys
 import hashlib
 
+
 from pychat.crypto import AES as Cipher
-from pychat.crypto.work import hash as work
+from pychat.crypto.work import hash_work as work
 from pychat.misc.encoding_tools import ENCODING
 
 
