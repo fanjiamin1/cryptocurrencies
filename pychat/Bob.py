@@ -1,7 +1,10 @@
 import socket
 import sys
+import hashlib
 
 from pychat.crypto import AES as Cipher
+from pychat.crypto.work import hash as work
+from pychat.misc.encoding_tools import ENCODING
 
 
 HOST = ""
@@ -26,7 +29,22 @@ class Bob:
                     data = connection.recv(1024)
                     if not data:
                         break
-                    print("Alice:", self.cipher.decrypt(data))
+                    data = self.cipher.decrypt(data)
+                    split_data = data.split(' ')
+                    if len(split_data) == 2:
+                        print("!!!", "Alice sent me a task!")
+                        try:
+                            print("!!!", "It looks like this:", split_data)
+                            prefix, bits = split_data
+                            bits = int(bits)
+                            prefix = bytes(prefix, ENCODING)
+                            suffix = work(prefix, bits)
+                            print("!!!", "Found suffix:", suffix)
+                            print("!!!", "sha256(prefix+suffix):", hashlib.sha256(prefix+suffix).digest())
+                        except:
+                            print("!!!", "I failed at the task...")
+                    else:
+                        print("Alice:", data)
                 print("She hung up!")
         finally:
             try:
