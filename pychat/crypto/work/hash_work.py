@@ -1,9 +1,14 @@
+import multiprocessing
 import threading
+import time
 
 
 from hashlib import sha256
 from os import urandom
 
+
+CPU_COUNT = multiprocessing.cpu_count()
+WORKER_THREAD_COUNT = CPU_COUNT - 1
 
 ZERO_BYTE = b'\x00'
 
@@ -115,9 +120,35 @@ def _increment_byte_array(byte_array):
             index += 1
 
 
-def multithreaded_hash_work(prefix, bits):
-    pass
+if WORKER_THREAD_COUNT > 2:
+    def _deterministic(prefix, bits, result_arr):
+        result_arr[0] = _deterministic_hash(prefix, bits)
+    def _random(prefix, bits, result_arr):
+        result_arr[0] = _random_hash(prefix, bits)
+    def _multithreaded_hash_work(prefix, bits):
+        t0 = time.time()
+        threads = []
+        result_arr = [None]
+        args = (prefix, bits, result_arr)
+        threads.append(threading.Thread( target=_deterministic
+                                       , args=args))
+        for _ in range(WORKER_THREAD_COUNT-1):
+            threads.append(threading.Thread( target=_random
+                                           , args=args))
+        for thread in threads:
+            thread.start()
+        while result_arr[0] == None:
+            pass
+        t = time.time()
+        print("First time: {}".format(t-t0))
+        for thread in threads:
+            thread.join()
+        print("Extra time: {}".format(time.time() - t))
+        return result_arr[0]
+else:
+    _multithreaded_hash_work = _random_hash
 
 
 #hash_work = _random_hash
 hash_work = _deterministic_hash
+#hash_work = _multithreaded_hash_work
