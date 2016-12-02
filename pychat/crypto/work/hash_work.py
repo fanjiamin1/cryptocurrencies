@@ -126,7 +126,6 @@ if WORKER_THREAD_COUNT > 2:
     def _random(prefix, bits, result_arr):
         result_arr[0] = _random_hash(prefix, bits)
     def _multithreaded_hash_work(prefix, bits):
-        t0 = time.time()
         threads = []
         result_arr = [None]
         args = (prefix, bits, result_arr)
@@ -139,11 +138,8 @@ if WORKER_THREAD_COUNT > 2:
             thread.start()
         while result_arr[0] == None:
             pass
-        t = time.time()
-        print("First time: {}".format(t-t0))
         for thread in threads:
             thread.join()
-        print("Extra time: {}".format(time.time() - t))
         return result_arr[0]
 else:
     _multithreaded_hash_work = _random_hash
