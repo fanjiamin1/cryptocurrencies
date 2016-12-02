@@ -3,10 +3,6 @@ import os
 import hashlib
 
 
-GROUPS = 1
-AMOUNT_OF_COMPETITORS = 2*GROUPS
-
-
 ZERO_BITS = 24
 
 
@@ -30,6 +26,22 @@ def broadcast_data (message):
 
 
 if __name__ == "__main__":
+    try:
+        with open("settings.txt", "r") as f:
+            # Read settings from file
+            # First argument is number of groups
+            # Second argument is people per group
+            GROUPS = int(f.readline())
+            AMOUNT_OF_COMPETITORS = int(f.readline())*GROUPS
+        print("Succeeded in reading from settings")
+    except:
+        print("Failed in reading from settings, resorting to defaults")
+        GROUPS = 1
+        AMOUNT_OF_COMPETITORS = 2*GROUPS
+
+    PPG = AMOUNT_OF_COMPETITORS//GROUPS
+    print("Starting a competition of", GROUPS, "groups with", PPG, "people in each group!")
+
     # List to keep track of socket descriptors
     CONNECTION_LIST = []
     RECV_BUFFER = 16  # Length of suffix
@@ -76,6 +88,7 @@ if __name__ == "__main__":
         # Get the list sockets which are ready to be read through select
         read_sockets, write_sockets, error_sockets = select.select(CONNECTION_LIST,[],[])
         for sock in read_sockets:
+            addr = sock.getpeername()
             #New connection
             if sock == server_socket:
                 pass  # Ignore connections
@@ -108,6 +121,9 @@ if __name__ == "__main__":
                     print("Game over")
                 else:
                     print("which has {} zero bits...".format(count))
+                    print("WRONG {}! Closing connection".format(addr))
+                    sock.close()
+                    CONNECTION_LIST.remove(sock)
                 if success:
                     break
 
