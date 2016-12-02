@@ -39,7 +39,7 @@ if __name__ == "__main__":
         read_sockets,write_sockets,select.select([alice.socket],[],[])
         for socket in read_sockets:
             message=socket.rcv(136)
-            prefix=message[:128]
+            prefix=message[:-2]
             difficulty=message[-1]
             suffix=work(prefix,difficulty)
             socket.send(suffix)
