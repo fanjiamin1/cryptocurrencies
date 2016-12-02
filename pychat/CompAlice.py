@@ -41,6 +41,7 @@ if __name__ == "__main__":
             difficulty=message[-1]
             suffix=work(prefix,difficulty)
             socket.send(suffix)
+            print(suffix)
             
 
 
