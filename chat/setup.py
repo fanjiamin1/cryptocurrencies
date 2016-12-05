@@ -6,9 +6,9 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup(
-    name = "broadchat",
+    name = "chat",
     version = "0.0.1",
-    packages=["broadchat"],
+    packages=["chat"],
     install_requires=["netifaces", "pycrypto"],
     long_description=read("README.md"),
 )
