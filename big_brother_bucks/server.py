@@ -1,5 +1,8 @@
+#TODO: format id to 32 bytes
+
 import socket
 import uuid
+from query import transaction
 
 
 class server:
@@ -19,6 +22,8 @@ class server:
         #this actually means we only have a 16 bytes of effective namespace
         #but searching it is as hard as a 32 byte namespace, it's plenty big
         #and plenty hard to search
+        #this will probably be deprecated for sql generated id's, which should
+        #be secure once we encrypt
         return uuid.uuid4().bytes+uuid.uuid4().bytes
 
     def perform_transaction(message_words):
@@ -33,12 +38,11 @@ class server:
             return 'False'
         #TODO:confirm that payer and receiver are valid
         #and that payer can afford the payment
-        #needs db interface, if any tests fail, set transaction_success
-        #to False
-        transaction_success=True
-        if transaction_success:
+        #needs db interface
+        #db interface now promises this functionality
+        transaction_id=generate_transaction_id()
+        if not transaction_id is None:
             #TODO:Generate transaction ID , file transaction in db
-            transaction_id=generate_transaction_id()
             return transaction_id
         else:
             return 'False'
@@ -59,6 +63,7 @@ class server:
         #and that payer can afford the payment
         #needs db interface, if any tests fail, set transaction_confirmed
         #to False
+        #will be delivered by db
         return transaction_confirmed
 
 
