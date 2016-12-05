@@ -42,7 +42,14 @@ class server:
         #db interface now promises this functionality
         transaction_id=generate_transaction_id()
         if not transaction_id is None:
-            #TODO:Generate transaction ID , file transaction in db
+            #formatting transaction id to be 32 bytes
+            string_id=str(transaction_id)
+            if len(string_id)>32:
+                system.exit("we ran out of transaction ID's, that's a lot"
+                           +"of transactions")
+            else:
+                string_id=string_id.ljust(32,'0')
+
             return transaction_id
         else:
             return 'False'
