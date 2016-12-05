@@ -1,4 +1,5 @@
 import socket
+import uuid
 
 
 class server:
@@ -10,12 +11,9 @@ class server:
         self.socket=socket.socket(socket.AF_INET
                                  ,socket.DGRAM)
         socket.bind('',port)
-        self.nextid=0
 
     def generate_transaction_id():
-        output=nextid
-        nextid+=1
-        return output
+        return uuid.uuid4().bytes+uuid.uuid4().bytes
 
     def perform_transaction(message_words):
         if len(message_words)!=3:
