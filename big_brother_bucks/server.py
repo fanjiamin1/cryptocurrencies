@@ -13,6 +13,12 @@ class server:
         socket.bind('',port)
 
     def generate_transaction_id():
+        #generates a string that is unique for this session at least
+        #probabilistically, this shouldn't collide, but it would bear
+        #checking to be perfect
+        #this actually means we only have a 16 bytes of effective namespace
+        #but searching it is as hard as a 32 byte namespace, it's plenty big
+        #and plenty hard to search
         return uuid.uuid4().bytes+uuid.uuid4().bytes
 
     def perform_transaction(message_words):
