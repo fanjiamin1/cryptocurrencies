@@ -73,7 +73,3 @@ class server:
                 else:
                     self.socket.sendto('unknown command, try again', addr)
 
-
-
-
-
