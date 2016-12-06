@@ -1,0 +1,7 @@
+
+use hash of public key as ID for clients, 
+	still need a central authority with public keys
+
+functionality extension: multiple in-multiple out transfers
+verify needs to only check whether or not transaction ID gave them that
+amount of money, no need for payers id to be involved

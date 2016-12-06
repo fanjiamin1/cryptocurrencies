@@ -43,3 +43,13 @@ class RSA:
         if key is None:
             key = self._private_key
         return key.decrypt(ciphertext_bytes)
+
+    def sign(self,message,key=None):
+        if key is None:
+            key = self._private_key
+        return key.sign(message,b'why are we constantly adding these strings?')
+
+    def verify(self,message,signature,key=None):
+        if key is None:
+            key = self._private_key
+        return key.verify(message,signature)

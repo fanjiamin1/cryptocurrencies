@@ -32,16 +32,6 @@ class server:
         #addressed, so that we can encrypt using it
 
 
-    def generate_transaction_id():
-        #generates a string that is unique for this session at least
-        #probabilistically, this shouldn't collide, but it would bear
-        #checking to be perfect
-        #this actually means we only have a 16 bytes of effective namespace
-        #but searching it is as hard as a 32 byte namespace, it's plenty big
-        #and plenty hard to search
-        #this will probably be deprecated for sql generated id's, which should
-        #be secure enough once we encrypt
-        return uuid.uuid4().bytes+uuid.uuid4().bytes
 
     def perform_transaction(message_words):
         if len(message_words)!=3:
@@ -98,20 +88,23 @@ class server:
             #encrypt data specifically for the user being addressed
             data, addr = self.socket.recvfrom(1024)
             if data:
-                #parse data
-                #TODO:verify message words function
-                message_words=data.partition(' ')
-                #TODO:encrypt this on the way out
+                self.rsa.decrypt(message)
+                #fetch the public key and use it to verify the message
+                self.rsa.set_public_key(query.get_key(message_words[1]))
+                self.rsa.verify(message)
+                message_words=data.split(' ')
 
                 if message_words[0].lower()=='pay':
                     message=self.perform_transaction(message_words)
+                    self.rsa.encrypt(message)
                     self.socket.sendto(self.rsa.encrypt(message)
                                       ,addr)
                 elif message_words[0].lower()=='query':
                     message=self.verify_transaction(message_words)
+                    self.rsa.encrypt(message)
                     self.socket.sendto(self.rsa.encrypt(message)
                                       ,addr)
                 else:
                     #encrypt answer to failed commands? maybe not
-                    self.socket.sendto('unknown command, try again', addr)
+                    self.socket.sendto(self.rsa.encrypt('invalid command or account, try again'), addr)
 
