@@ -73,13 +73,8 @@ class server:
             amount=(int) amountstring
         except:
             return 'False'
-        transaction_confirmed=True
-        #TODO:confirm that payer and receiver are valid
-        #and that payer can afford the payment
-        #needs db interface, if any tests fail, set transaction_confirmed
-        #to False
-        #will be delivered by db
-        return transaction_confirmed
+        tpayer, treceiver, tamount, tsession=query.look_up_transaction(transaction_id)
+        return payer==tpayer and receiver=treceiver and amount==tamount
 
 
     def start():
