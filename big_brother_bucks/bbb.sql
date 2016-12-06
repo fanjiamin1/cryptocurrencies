@@ -7,7 +7,7 @@
 #
 # Hôte: localhost (MySQL 5.6.28-log)
 # Base de données: cryptocurrencies
-# Temps de génération: 2016-12-06 10:30:57 +0000
+# Temps de génération: 2016-12-06 10:45:46 +0000
 # ************************************************************
 
 
@@ -28,16 +28,17 @@ DROP TABLE IF EXISTS `account`;
 CREATE TABLE `account` (
   `a_id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `a_balance` int(11) DEFAULT '0',
+  `a_pubkey` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`a_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 LOCK TABLES `account` WRITE;
 /*!40000 ALTER TABLE `account` DISABLE KEYS */;
 
-INSERT INTO `account` (`a_id`, `a_balance`)
+INSERT INTO `account` (`a_id`, `a_balance`, `a_pubkey`)
 VALUES
-	(5,10),
-	(6,90);
+	(5,10,NULL),
+	(6,90,NULL);
 
 /*!40000 ALTER TABLE `account` ENABLE KEYS */;
 UNLOCK TABLES;
