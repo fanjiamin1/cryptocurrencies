@@ -15,6 +15,7 @@ import os
 
 
 BUFSIZE = 2**12
+ENCODING = "utf-8"
 
 
 class Bank:
@@ -85,27 +86,38 @@ class Bank:
                     #self.rsa.verify(message)
 
                     if command == "pay":
-                        #self.rsa.set_public_key(query.get_key(message_words[1]))
-                        reply = self.perform_transaction(message_words)
-                        print(reply)
-                        reply = bytes(reply)
-                        #self.socket.sendto(
-                        #                    self.rsa.encrypt(reply)
-                        #                  , address
-                        #                  )
+                        self.pay(message_words, address)
                     elif command == "query":
-                        #self.rsa.set_public_key(query.get_key(message_words[2]))
-                        reply = self.verify_transaction(message_words)
-                        print(reply)
-                        reply = bytes(reply)
-                        #self.socket.sendto(
-                        #                    self.rsa.encrypt(reply)
-                        #                  , address
-                        #                  )
+                        self.query(message_words, address)
                     else:
-                        self.socket.sendto(b"Invalid request", address)
+                        self.invalid(message_words, address)
                 except Exception as e:
                     print("EXCEPTION:", e)
+
+    def pay(self, message_words, address):
+        #self.rsa.set_public_key(query.get_key(message_words[1]))
+        reply = self.perform_transaction(message_words)
+        print(reply)
+        reply = bytes(reply, ENCODING)
+        #encrypted_reply = self.rsa.encrypt(reply)
+        #self.socket.sendto(
+        #                    encrypted_reply
+        #                  , address
+        #                  )
+
+    def query(self, message_words, address):
+        #self.rsa.set_public_key(query.get_key(message_words[2]))
+        reply = self.verify_transaction(message_words)
+        print(reply)
+        reply = bytes(reply, ENCODING)
+        #encrypted_reply = self.rsa.encrypt(reply)
+        #self.socket.sendto(
+        #                    encrypted_reply
+        #                  , address
+        #                  )
+
+    def invalid(self, message_words, address):
+        self.socket.sendto(b"Invalid request", address)
 
 
 if __name__ == "__main__":
