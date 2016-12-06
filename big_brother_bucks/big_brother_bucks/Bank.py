@@ -31,33 +31,30 @@ class Bank:
             self.rsa.set_private_key(RSA.key_from_file(private_key_file))
 
     def perform_transaction(self, message_words):
-        if len(message_words)!=3:
-            return 'False'
-        payer=message_words[1]
-        receiver=message_words[2]
-        amountstring=message_words[3]
+        if len(message_words) != 3:
+            return repr(False)
+        payer = message_words[1]
+        receiver = message_words[2]
+        amountstring = message_words[3]
         try:
-            amount=int(amountstring)
+            amount = int(amountstring)
         except:
-            return 'False'
+            return repr(False)
         #TODO:confirm that payer and receiver are valid
         #and that payer can afford the payment
         #needs db interface
         #db interface now promises this functionality
-        transaction_id=query.transaction(payer,receiver,words)
-        if not transaction_id is None:
+        transaction_id = query.transaction(payer, receiver, words)
+        if transaction_id is not None:
             #formatting transaction id to be 32 bytes
-            string_id=str(transaction_id)
-            if len(string_id)>32:
-                system.exit("we ran out of transaction ID's, that's a lot"
-                           +"of transactions")
+            string_id = str(transaction_id)
+            if len(string_id) > 32:
+                system.exit("Transaction limit exceeded")
             else:
-                string_id=string_id.ljust(32,'0')
-
-
+                string_id = string_id.ljust(32, '0')
             return transaction_id
         else:
-            return 'False'
+            return repr(False)
 
     def verify_transaction(self, message_words):
         if len(message_words) != 4:
