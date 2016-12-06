@@ -14,6 +14,9 @@ from .crypto import RSA
 import os
 
 
+BUFSIZE = 2**12
+
+
 class Bank:
     def __init__(self, port=9001, public_key_file=None, private_key_file=None):
         self.socket = socket.socket(
@@ -73,33 +76,36 @@ class Bank:
 
     def start(self):
         while True:
-            #TODO:use addr to set public key so we can
-            #encrypt data specifically for the user being addressed
-            data, addr = self.socket.recvfrom(1024)
+            data, address = self.socket.recvfrom(BUFSIZE)
             if data:
-                print(data)
-                message = self.rsa.decrypt(data)
-                message = message.decode()
-                message_words = message.split(' ')
-                print(message)
-                # Fetch the public key and use it to verify the message
-                self.rsa.verify(message)
+                try:
+                    print(data)
+                    message = self.rsa.decrypt(data)
+                    message = message.decode()
+                    message_words = message.split(' ')
+                    command = message_words[0].lower()
 
-                if message_words[0].lower()=='pay':
-                    self.rsa.set_public_key(query.get_key(message_words[1]))
-                    message=self.perform_transaction(message_words)
-                    self.rsa.encrypt(message)
-                    self.socket.sendto(self.rsa.encrypt(message)
-                                      ,addr)
-                elif message_words[0].lower()=='query':
-                    self.rsa.set_public_key(query.get_key(message_words[2]))
-                    message=self.verify_transaction(message_words)
-                    self.rsa.encrypt(message)
-                    self.socket.sendto(self.rsa.encrypt(message)
-                                      ,addr)
-                else:
-                    #encrypt answer to failed commands? maybe not
-                    self.socket.sendto(self.rsa.encrypt('invalid command or account, try again'), addr)
+                    # TODO: Fetch the public key and use it to verify the message
+                    #self.rsa.verify(message)
+
+                    if command == "pay":
+                        #self.rsa.set_public_key(query.get_key(message_words[1]))
+                        message = self.perform_transaction(message_words)
+                        self.rsa.encrypt(bytes(message))
+                        self.socket.sendto(
+                                            self.rsa.encrypt(message)
+                                          , address
+                                          )
+                    elif command == "query":
+                        self.rsa.set_public_key(query.get_key(message_words[2]))
+                        message=self.verify_transaction(message_words)
+                        self.rsa.encrypt(message)
+                        self.socket.sendto(self.rsa.encrypt(message)
+                                          ,address)
+                    else:
+                        self.socket.sendto(b"Invalid request", address)
+                except Exception as e:
+                    print("EXCEPTION:", e)
 
 
 if __name__ == "__main__":
