@@ -79,8 +79,9 @@ class Bank:
             if data:
                 print(data)
                 message = self.rsa.decrypt(data)
-                print(message)
+                message = message.decode()
                 message_words = message.split(' ')
+                print(message)
                 # Fetch the public key and use it to verify the message
                 self.rsa.verify(message)
 
