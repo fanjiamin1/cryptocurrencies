@@ -26,8 +26,9 @@ CREATE TABLE `account` (
   `a_id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `a_balance` int(11) DEFAULT '0',
   `a_pubkey` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`a_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8;
+  PRIMARY KEY (`a_id`),
+  UNIQUE KEY `a_pubkey` (`a_pubkey`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -36,7 +37,7 @@ CREATE TABLE `account` (
 
 LOCK TABLES `account` WRITE;
 /*!40000 ALTER TABLE `account` DISABLE KEYS */;
-INSERT INTO `account` VALUES (5,10,NULL),(6,90,NULL);
+INSERT INTO `account` VALUES (5,9,NULL),(6,91,NULL),(7,0,'28');
 /*!40000 ALTER TABLE `account` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -58,7 +59,7 @@ CREATE TABLE `transaction` (
   KEY `t_a_to` (`t_to`),
   CONSTRAINT `t_a_from` FOREIGN KEY (`t_from`) REFERENCES `account` (`a_id`),
   CONSTRAINT `t_a_to` FOREIGN KEY (`t_to`) REFERENCES `account` (`a_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -67,7 +68,7 @@ CREATE TABLE `transaction` (
 
 LOCK TABLES `transaction` WRITE;
 /*!40000 ALTER TABLE `transaction` DISABLE KEYS */;
-INSERT INTO `transaction` VALUES (1,5,6,100,1),(2,5,6,100,1),(3,5,6,100,1),(4,5,6,100,1),(5,6,5,200,1),(6,5,6,100,1),(7,5,6,90,1);
+INSERT INTO `transaction` VALUES (1,5,6,100,1),(2,5,6,100,1),(3,5,6,100,1),(4,5,6,100,1),(5,6,5,200,1),(6,5,6,100,1),(7,5,6,90,1),(8,5,6,1,1);
 /*!40000 ALTER TABLE `transaction` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -82,7 +83,7 @@ DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `update_balance` BEFORE INSERT ON `transaction` FOR EACH ROW BEGIN
 	DECLARE balance INT;
 	SELECT a_balance INTO balance FROM account WHERE a_id = NEW.t_from;
-	IF ( balance >= NEW.t_amount ) THEN
+	IF ( balance >= NEW.t_amount && NEW.t_amount > 0 ) THEN
 		UPDATE 
 			account a1 JOIN account a2 
 			ON a1.a_id = NEW.t_from AND a2.a_id = NEW.t_to
@@ -108,4 +109,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2016-12-06 11:06:29
+-- Dump completed on 2016-12-06 14:44:13

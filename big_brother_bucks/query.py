@@ -19,9 +19,9 @@ def look_up_transaction(t_id):
 		db.rollback()
 		return e
 
-def add_account():
+def add_account(a_pubkey):
 	try:
-		x.execute("INSERT INTO account (a_id) VALUES (null)")
+		x.execute("INSERT INTO account (a_id, a_pubkey) VALUES (null, %s)", (a_pubkey,))
 		db.commit()
 		return x.lastrowid
 	except db.Error as e:
@@ -43,3 +43,5 @@ def get_key(a_id):
 		return x.fetchall()[0]
 	except db.Error as e:
 		return e
+
+print(add_account(28))
