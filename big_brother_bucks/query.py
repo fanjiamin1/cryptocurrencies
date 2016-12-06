@@ -14,7 +14,7 @@ def transaction(t_from, t_to, t_amount, t_session):
 def look_up_transaction(t_id):
 	try:
 		x.execute("SELECT * FROM transaction WHERE t_id = %s", (t_id,))
-		return x.fetchall()
+		return x.fetchall()[0]
 	except db.Error as e:
 		db.rollback()
 		return e
@@ -40,6 +40,6 @@ def remove_account(account_id):
 def get_key(a_id):
 	try:
 		x.execute("SELECT a_pubkey FROM account WHERE a_id = %s", (a_id,))
-		return x.fetchall()
+		return x.fetchall()[0]
 	except db.Error as e:
 		return e
