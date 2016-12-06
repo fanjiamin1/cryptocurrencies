@@ -32,7 +32,6 @@ class server:
         #addressed, so that we can encrypt using it
 
 
-
     def perform_transaction(message_words):
         if len(message_words)!=3:
             return 'False'
@@ -40,7 +39,7 @@ class server:
         receiver=message_words[2]
         amountstring=message_words[3]
         try:
-            amount=(int) amountstring
+            amount=int(amountstring)
         except:
             return 'False'
         #TODO:confirm that payer and receiver are valid
@@ -57,7 +56,7 @@ class server:
             else:
                 string_id=string_id.ljust(32,'0')
 
-    
+
             return transaction_id
         else:
             return 'False'
@@ -70,11 +69,11 @@ class server:
         transaction_id=message_words[3]
         amountstring=message_words[4]
         try:
-            amount=(int) amountstring
+            amount=int(amountstring)
         except:
             return 'False'
         tpayer, treceiver, tamount, tsession=query.look_up_transaction(transaction_id)
-        return payer==tpayer and receiver=treceiver and amount==tamount
+        return payer==tpayer and receiver==treceiver and amount==tamount
 
 
     def start():

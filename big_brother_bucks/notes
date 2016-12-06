@@ -5,3 +5,7 @@ use hash of public key as ID for clients,
 functionality extension: multiple in-multiple out transfers
 verify needs to only check whether or not transaction ID gave them that
 amount of money, no need for payers id to be involved
+
+
+refactoring request: Maintain list of valid accounts, be ready to
+backtrack. Use blockchaining, add identity of last chain and hash of last chain
