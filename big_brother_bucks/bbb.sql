@@ -26,8 +26,9 @@ CREATE TABLE `account` (
   `a_id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `a_balance` int(11) DEFAULT '0',
   `a_pubkey` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`a_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8;
+  PRIMARY KEY (`a_id`),
+  UNIQUE KEY `a_pubkey` (`a_pubkey`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -36,7 +37,7 @@ CREATE TABLE `account` (
 
 LOCK TABLES `account` WRITE;
 /*!40000 ALTER TABLE `account` DISABLE KEYS */;
-INSERT INTO `account` VALUES (5,9,NULL),(6,91,NULL);
+INSERT INTO `account` VALUES (5,9,NULL),(6,91,NULL),(7,0,'28');
 /*!40000 ALTER TABLE `account` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -108,4 +109,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2016-12-06 13:27:05
+-- Dump completed on 2016-12-06 14:44:13
