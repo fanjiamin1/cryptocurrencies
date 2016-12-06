@@ -1,5 +1,8 @@
 from db import db
+
+
 x = db.cursor()
+
 
 def transaction(t_from, t_to, t_amount, t_session):
 	try:
@@ -43,5 +46,3 @@ def get_key(a_id):
 		return x.fetchall()[0]
 	except db.Error as e:
 		return e
-
-print(add_account(28))

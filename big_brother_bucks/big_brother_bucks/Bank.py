@@ -6,25 +6,18 @@
 #need to add session tracking, with reinitialisation on each session
 #could probably be hacked out of db finding highest session number
 
-#server now encrypts 
-
-
 
 import socket
 import uuid
-from query import transaction
-from crypto import RSA
+#import .query as query
+from .crypto import RSA
 
 
-class server:
-    
-
-    def __init__(self,port=9001):
-        #needs to load the db
-
+class Bank:
+    def __init__(self, port=9001):
         self.socket=socket.socket(socket.AF_INET
-                                 ,socket.DGRAM)
-        socket.bind('',port)
+                                 ,socket.SOCK_DGRAM)
+        self.socket.bind(('',port))
         self.rsa=RSA()
         self.publickey, self.privatekey=self.rsa.generate_key_pair(2)
         #post public key to public file, after that, self.publickey
@@ -32,7 +25,7 @@ class server:
         #addressed, so that we can encrypt using it
 
 
-    def perform_transaction(message_words):
+    def perform_transaction(self, message_words):
         if len(message_words)!=3:
             return 'False'
         payer=message_words[1]
@@ -46,7 +39,7 @@ class server:
         #and that payer can afford the payment
         #needs db interface
         #db interface now promises this functionality
-        transaction_id=transaction(payer,receiver,words)
+        transaction_id=query.transaction(payer,receiver,words)
         if not transaction_id is None:
             #formatting transaction id to be 32 bytes
             string_id=str(transaction_id)
@@ -61,7 +54,7 @@ class server:
         else:
             return 'False'
 
-    def verify_transaction(message_words):
+    def verify_transaction(self,message_words):
         if len(message_words)!=4:
             return 'False'
         payer=message_words[1]
@@ -76,7 +69,7 @@ class server:
         return payer==tpayer and receiver==treceiver and amount==tamount
 
 
-    def start():
+    def start(self):
         while True:
             #TODO:use addr to set public key so we can 
             #encrypt data specifically for the user being addressed
@@ -102,3 +95,7 @@ class server:
                     #encrypt answer to failed commands? maybe not
                     self.socket.sendto(self.rsa.encrypt('invalid command or account, try again'), addr)
 
+
+if __name__ == "__main__":
+    bank = Bank()
+    bank.start()
