@@ -7,7 +7,7 @@
 #
 # Hôte: localhost (MySQL 5.6.28-log)
 # Base de données: cryptocurrencies
-# Temps de génération: 2016-12-05 13:49:02 +0000
+# Temps de génération: 2016-12-06 10:30:57 +0000
 # ************************************************************
 
 
@@ -27,17 +27,17 @@ DROP TABLE IF EXISTS `account`;
 
 CREATE TABLE `account` (
   `a_id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `a_desc` int(11) DEFAULT NULL,
+  `a_balance` int(11) DEFAULT '0',
   PRIMARY KEY (`a_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 LOCK TABLES `account` WRITE;
 /*!40000 ALTER TABLE `account` DISABLE KEYS */;
 
-INSERT INTO `account` (`a_id`, `a_desc`)
+INSERT INTO `account` (`a_id`, `a_balance`)
 VALUES
-	(1,NULL),
-	(3,25);
+	(5,10),
+	(6,90);
 
 /*!40000 ALTER TABLE `account` ENABLE KEYS */;
 UNLOCK TABLES;
@@ -66,12 +66,35 @@ LOCK TABLES `transaction` WRITE;
 
 INSERT INTO `transaction` (`t_id`, `t_from`, `t_to`, `t_amount`, `t_session`)
 VALUES
-	(18,1,1,20,10),
-	(19,3,3,50,10),
-	(20,3,3,50,10);
+	(1,5,6,100,1),
+	(2,5,6,100,1),
+	(3,5,6,100,1),
+	(4,5,6,100,1),
+	(5,6,5,200,1),
+	(6,5,6,100,1),
+	(7,5,6,90,1);
 
 /*!40000 ALTER TABLE `transaction` ENABLE KEYS */;
 UNLOCK TABLES;
+
+DELIMITER ;;
+/*!50003 SET SESSION SQL_MODE="NO_ENGINE_SUBSTITUTION" */;;
+/*!50003 CREATE */ /*!50017 DEFINER=`root`@`localhost` */ /*!50003 TRIGGER `update_balance` BEFORE INSERT ON `transaction` FOR EACH ROW BEGIN
+	DECLARE balance INT;
+	SELECT a_balance INTO balance FROM account WHERE a_id = NEW.t_from;
+	IF ( balance >= NEW.t_amount ) THEN
+		UPDATE 
+			account a1 JOIN account a2 
+			ON a1.a_id = NEW.t_from AND a2.a_id = NEW.t_to
+			SET
+				a1.a_balance = a1.a_balance - NEW.t_amount,
+				a2.a_balance = a2.a_balance + NEW.t_amount;
+	ELSE
+		SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "Unsufficient amount, transaction aborted";  
+	END IF;
+END */;;
+DELIMITER ;
+/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE */;
 
 
 
