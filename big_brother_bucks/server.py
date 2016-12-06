@@ -88,12 +88,11 @@ class server:
             #encrypt data specifically for the user being addressed
             data, addr = self.socket.recvfrom(1024)
             if data:
-                #parse data
                 self.rsa.decrypt(message)
-                message_words=data.split(' ')
-                #TODO:look up the public key of addr, probably using ID from message, will be delivered by query
-                #if query is valid message_words[1] is the account sending the request
+                #fetch the public key and use it to verify the message
                 self.rsa.set_public_key(query.get_key(message_words[1]))
+                self.rsa.verify(message)
+                message_words=data.split(' ')
 
                 if message_words[0].lower()=='pay':
                     message=self.perform_transaction(message_words)
