@@ -59,19 +59,19 @@ class Bank:
         else:
             return 'False'
 
-    def verify_transaction(self,message_words):
-        if len(message_words)!=4:
-            return 'False'
-        payer=message_words[1]
-        receiver=message_words[2]
-        transaction_id=message_words[3]
-        amountstring=message_words[4]
+    def verify_transaction(self, message_words):
+        if len(message_words) != 4:
+            return repr(False)
+        payer = message_words[1]
+        receiver = message_words[2]
+        transaction_id = message_words[3]
+        amountstring = message_words[4]
         try:
-            amount=int(amountstring)
+            amount = int(amountstring)
         except:
-            return 'False'
-        tpayer, treceiver, tamount, tsession=query.look_up_transaction(transaction_id)
-        return payer==tpayer and receiver==treceiver and amount==tamount
+            return repr(False)
+        tpayer, treceiver, tamount, tsession = query.look_up_transaction(transaction_id)
+        return repr(payer == tpayer and receiver == treceiver and amount == tamount)
 
 
     def start(self):
@@ -79,7 +79,6 @@ class Bank:
             data, address = self.socket.recvfrom(BUFSIZE)
             if data:
                 try:
-                    print(data)
                     message = self.rsa.decrypt(data)
                     message = message.decode()
                     message_words = message.split(' ')
@@ -90,18 +89,22 @@ class Bank:
 
                     if command == "pay":
                         #self.rsa.set_public_key(query.get_key(message_words[1]))
-                        message = self.perform_transaction(message_words)
-                        self.rsa.encrypt(bytes(message))
-                        self.socket.sendto(
-                                            self.rsa.encrypt(message)
-                                          , address
-                                          )
+                        reply = self.perform_transaction(message_words)
+                        print(reply)
+                        reply = bytes(reply)
+                        #self.socket.sendto(
+                        #                    self.rsa.encrypt(reply)
+                        #                  , address
+                        #                  )
                     elif command == "query":
-                        self.rsa.set_public_key(query.get_key(message_words[2]))
-                        message=self.verify_transaction(message_words)
-                        self.rsa.encrypt(message)
-                        self.socket.sendto(self.rsa.encrypt(message)
-                                          ,address)
+                        #self.rsa.set_public_key(query.get_key(message_words[2]))
+                        reply = self.verify_transaction(message_words)
+                        print(reply)
+                        reply = bytes(reply)
+                        #self.socket.sendto(
+                        #                    self.rsa.encrypt(reply)
+                        #                  , address
+                        #                  )
                     else:
                         self.socket.sendto(b"Invalid request", address)
                 except Exception as e:
