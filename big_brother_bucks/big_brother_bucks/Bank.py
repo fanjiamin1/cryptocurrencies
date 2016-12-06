@@ -11,19 +11,21 @@ import socket
 import uuid
 #import .query as query
 from .crypto import RSA
+import os
 
 
 class Bank:
-    def __init__(self, port=9001):
-        self.socket=socket.socket(socket.AF_INET
-                                 ,socket.SOCK_DGRAM)
-        self.socket.bind(('',port))
-        self.rsa=RSA()
-        self.publickey, self.privatekey=self.rsa.generate_key_pair(2)
-        #post public key to public file, after that, self.publickey
-        #should contain public key of the party that is being
-        #addressed, so that we can encrypt using it
-
+    def __init__(self, port=9001, public_key_file=None, private_key_file=None):
+        self.socket = socket.socket(
+                                     socket.AF_INET
+                                   , socket.SOCK_DGRAM
+                                   )
+        self.socket.bind(("", port))
+        self.rsa = RSA()
+        if public_key_file is not None:
+            self.rsa.set_public_key(RSA.key_from_file(public_key_file))
+        if private_key_file is not None:
+            self.rsa.set_private_key(RSA.key_from_file(private_key_file))
 
     def perform_transaction(self, message_words):
         if len(message_words)!=3:
@@ -71,22 +73,25 @@ class Bank:
 
     def start(self):
         while True:
-            #TODO:use addr to set public key so we can 
+            #TODO:use addr to set public key so we can
             #encrypt data specifically for the user being addressed
             data, addr = self.socket.recvfrom(1024)
             if data:
-                self.rsa.decrypt(message)
-                #fetch the public key and use it to verify the message
-                self.rsa.set_public_key(query.get_key(message_words[1]))
+                print(data)
+                message = self.rsa.decrypt(data)
+                print(message)
+                message_words = message.split(' ')
+                # Fetch the public key and use it to verify the message
                 self.rsa.verify(message)
-                message_words=data.split(' ')
 
                 if message_words[0].lower()=='pay':
+                    self.rsa.set_public_key(query.get_key(message_words[1]))
                     message=self.perform_transaction(message_words)
                     self.rsa.encrypt(message)
                     self.socket.sendto(self.rsa.encrypt(message)
                                       ,addr)
                 elif message_words[0].lower()=='query':
+                    self.rsa.set_public_key(query.get_key(message_words[2]))
                     message=self.verify_transaction(message_words)
                     self.rsa.encrypt(message)
                     self.socket.sendto(self.rsa.encrypt(message)
@@ -97,5 +102,8 @@ class Bank:
 
 
 if __name__ == "__main__":
-    bank = Bank()
+    key_directory = os.path.join(os.path.split(os.path.dirname(__file__))[0], "keys")
+    public_key_file = os.path.join(key_directory, "bank_public.rsk")
+    private_key_file = os.path.join(key_directory, "bank_private.rsk")
+    bank = Bank(public_key_file=public_key_file, private_key_file=private_key_file)
     bank.start()
