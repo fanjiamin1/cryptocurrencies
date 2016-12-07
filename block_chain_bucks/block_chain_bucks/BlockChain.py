@@ -34,6 +34,25 @@ class BlockChain:
             assert block.hash_pointer == last_hash
             last_hash = block.hash()
 
+    def find_balance(self,id):
+        for block in self.blocks[::-1]:
+            transaction_words=block.payload.split(' ')
+            out_id_index=-1
+            if id in transaction:
+                out_id_index=transaction_words[:transaction_words.index(id)+1].index(id)+transaction_words.index(id)+1
+                out_amount_index = out_id_index+1
+                break
+            if out_id_index==-1:
+                return 0
+        try:
+            return int(transaction_words[out_amount_index])
+        except:
+            #this means we have a malformed transaction in the block-chain
+            system.exit("blockchain contained invalid transfer or balance checking is bugged")
+
+            
+
+
     def __str__(self):
         result = [repr(block) for block in self]
         return " <- ".join(result)
