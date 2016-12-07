@@ -32,7 +32,7 @@ class Bank:
             self.rsa.set_private_key(RSA.key_from_file(private_key_file))
 
     def perform_transaction(self, message_words):
-        if len(message_words) != 3:
+        if len(message_words) != 4:
             return repr(False)
         payer = message_words[1]
         receiver = message_words[2]
@@ -58,7 +58,7 @@ class Bank:
             return repr(False)
 
     def verify_transaction(self, message_words):
-        if len(message_words) != 4:
+        if len(message_words) != 5:
             return repr(False)
         payer = message_words[1]
         receiver = message_words[2]
