@@ -48,9 +48,10 @@ class RSA:
     def sign(self, message_bytes, key=None):
         if key is None:
             key = self._private_key
-        return key.sign(message_bytes, b"Unused argument")
+        signature_integer, = key.sign(message_bytes, b"Unused argument")
+        return signature_integer
 
-    def verify(self, message_bytes, signature_bytes, key=None):
+    def verify(self, message_bytes, signature_integer, key=None):
         if key is None:
             key = self._private_key
-        return key.verify(message_bytes, signature_bytes)
+        return key.verify(message_bytes, (signature_integer, None))

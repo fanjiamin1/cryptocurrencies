@@ -9,7 +9,7 @@
 
 import socket
 import uuid
-#import .query as query
+from big_brother_bucks import query
 from .crypto import RSA
 import os
 
@@ -83,7 +83,10 @@ class Bank:
                     command = message_words[0].lower()
 
                     self.rsa.set_public_key(query.get_key(message_words[1]))
-                    self.rsa.verify(message)
+                    signature = message_words[-1]
+                    verifiable_message = "".join(message_words[:-1])
+                    signature = int(signature)
+                    assert self.rsa.verify(verifiable_message, signature)
 
                     if command == "pay":
                         self.pay(message_words, address)
