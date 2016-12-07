@@ -6,6 +6,13 @@ class RSA:
         self._public_key = None
         self._private_key = None
 
+    def random_instance():
+        #generate valid keypair and assign it to self
+        pub,priv=self.generate_key_pair()
+        self.set_public_key(pub)
+        self.set_private_key(priv)
+        
+
     @staticmethod
     def generate_key_pair(strength=0):
         bits = 1024 + strength*256
