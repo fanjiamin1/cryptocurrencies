@@ -1,9 +1,9 @@
-from Crypto.Hash import SHA256
+from Crypto.Hash.SHA256 import SHA256Hash as SHA256
 from collections import namedtuple
 
 
 class Block(namedtuple("BlockBaseClass", ("hash_pointer", "payload"))):
-    def __hash__(self, genesis_block):
+    def hash(self):
         sha = SHA256(self.hash_pointer)
         sha.update(self.payload)
         return sha.digest()
@@ -16,9 +16,8 @@ class BlockChain:
     #the first block "genesis block" is different, it has no hash and it's payload is
     #the title of the song "am I very wrong?" by Genesis
 
-    def __init__(self,):
-        self.blocks=[]
-        self.blocks.append(('am I very wrong?',))
+    def __init__(self, genesis_block=Block(b"Am I Very Wrong?", b"No")):
+        self.blocks = [genesis_block]
 
     def add_transaction(self,transaction):
         prev_block_payload=self.blocks[-1][0]
