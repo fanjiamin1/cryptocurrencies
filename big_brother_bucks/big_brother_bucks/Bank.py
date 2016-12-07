@@ -82,8 +82,8 @@ class Bank:
                     message_words = message.split(' ')
                     command = message_words[0].lower()
 
-                    # TODO: Fetch the public key and use it to verify the message
-                    #self.rsa.verify(message)
+                    self.rsa.set_public_key(query.get_key(message_words[1]))
+                    self.rsa.verify(message)
 
                     if command == "pay":
                         self.pay(message_words, address)
@@ -95,15 +95,14 @@ class Bank:
                     print("EXCEPTION:", e)
 
     def pay(self, message_words, address):
-        #self.rsa.set_public_key(query.get_key(message_words[1]))
         reply = self.perform_transaction(message_words)
         print(reply)
         reply = bytes(reply, ENCODING)
-        #encrypted_reply = self.rsa.encrypt(reply)
-        #self.socket.sendto(
-        #                    encrypted_reply
-        #                  , address
-        #                  )
+        encrypted_reply = self.rsa.encrypt(reply)
+        self.socket.sendto(
+                            encrypted_reply
+                          , address
+                          )
 
     def query(self, message_words, address):
         #self.rsa.set_public_key(query.get_key(message_words[2]))
