@@ -43,5 +43,3 @@ def get_key(a_id):
 		return x.fetchall()[0]
 	except db.Error as e:
 		return e
-
-print(add_account(28))
