@@ -1,5 +1,8 @@
 from db import db
+
+
 x = db.cursor()
+
 
 def transaction(t_from, t_to, t_amount, t_session):
 	try:

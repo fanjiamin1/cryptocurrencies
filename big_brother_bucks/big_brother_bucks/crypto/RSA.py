@@ -33,7 +33,7 @@ class RSA:
     def encrypt(self, cleartext_bytes, key=None):
         if key is None:
             key = self._public_key
-        ciphertext_bytes, = key.encrypt( 
+        ciphertext_bytes, = key.encrypt(
                                          cleartext_bytes
                                        , b"Unused argument"
                                        )
@@ -42,14 +42,15 @@ class RSA:
     def decrypt(self, ciphertext_bytes, key=None):
         if key is None:
             key = self._private_key
-        return key.decrypt(ciphertext_bytes)
+        cleartext_bytes = key.decrypt(ciphertext_bytes)
+        return cleartext_bytes
 
-    def sign(self,message,key=None):
+    def sign(self, message_bytes, key=None):
         if key is None:
             key = self._private_key
-        return key.sign(message,b'why are we constantly adding these strings?')
+        return key.sign(message_bytes, b"Unused argument")
 
-    def verify(self,message,signature,key=None):
+    def verify(self, message_bytes, signature_bytes, key=None):
         if key is None:
             key = self._private_key
-        return key.verify(message,signature)
+        return key.verify(message_bytes, signature_bytes)
