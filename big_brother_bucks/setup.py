@@ -9,6 +9,6 @@ setup(
     name = "big_brother_bucks",
     version = "0.0.1",
     packages=["big_brother_bucks"],
-    install_requires=["pycrypto"],
+    install_requires=["pycrypto mysqlclient"],
     long_description=read("README.md"),
 )
