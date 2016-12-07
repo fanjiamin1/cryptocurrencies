@@ -1,5 +1,12 @@
 from Crypto.Hash import SHA256
+from collections import namedtuple
 
+
+class Block(namedtuple("BlockBaseClass", ("hash_pointer", "payload"))):
+    def __hash__(self, genesis_block):
+        sha = SHA256(self.hash_pointer)
+        sha.update(self.payload)
+        return sha.digest()
 
 class BlockChain:
 
@@ -9,7 +16,7 @@ class BlockChain:
     #the first block "genesis block" is different, it has no hash and it's payload is
     #the title of the song "am I very wrong?" by Genesis
 
-    def __init__(self):
+    def __init__(self,):
         self.blocks=[]
         self.blocks.append(('am I very wrong?',))
 
