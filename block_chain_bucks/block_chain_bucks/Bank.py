@@ -1,6 +1,8 @@
 import os
 import socket
 from .crypto import RSA
+from block_chain_bucks import Block
+from Crypto.Hash.SHA256 import SHA256Hash as SHA256
 
 
 BUFSIZE = 2**12
@@ -14,13 +16,36 @@ class Bank:
                                    , socket.SOCK_DGRAM
                                    )
         self.socket.bind(("", port))
+        pubkey=RSA.key_from_file(public_key_file)
         self.rsa = RSA()
-        #self.blockchain=BlockChain()
+        sha = SHA256()
+        sha.update(self.pubkey)
+        self.identity=sha.hexdigest()
+        genesis_block=Block( identity, identity+b" 0"+ identity+b" 1000000")
+        self.blockchain=BlockChain(genesis_block)
         if public_key_file is not None:
-            self.rsa.set_public_key(RSA.key_from_file(public_key_file))
+            self.rsa.set_public_key(pubkey)
         if private_key_file is not None:
             self.rsa.set_private_key(RSA.key_from_file(private_key_file))
 
+    def find_balance(self,id):
+        for block in reversed(self.blockchain):
+            transaction_words=block.payload.decode(Block.ENCODING).split(' ')
+            out_id_index=-1
+            if id in transaction:
+                #pythonic way of finding output part of the id
+                out_id_index=transaction_words[:transaction_words.index(id)+1].index(id)+transaction_words.index(id)+1
+                out_amount_index = out_id_index+1
+                break
+            if out_id_index==-1:
+                #TODO:need to account for founder transaction
+                #otherwise no balance can ever exist
+                return 0
+        try:
+            return int(transaction_words[out_amount_index])
+        except:
+            #this means we have a malformed transaction in the block-chain
+            system.exit("blockchain contained invalid transfer or balance checking is bugged")
     def start(self):
         while True:
             data, address = self.socket.recvfrom(BUFSIZE)
@@ -49,10 +74,10 @@ class Bank:
     def check_pay_command(self,message_words):
         #checks whether or not transaction can be added to blockchain
         inids=message_words[1:message_words[2:].index(message_words[1])+2:2]
-        outids=message_words[message_words[2:].index(message_words[1])+2::2]
+        outids=message_words[message_words[2:].index(message_words[1])+2::2][:len(inids)]
         try:
-            inamounts=[int(x) for x in message_words[3:message_words[2:].find(message_words[1])+2:2]]
-            outamounts=[int(x) for x in message_words[message_words[2:].index(message_words[1])+3::2]]
+            inamounts=[int(x) for x in message_words[3:message_words[2:].index(message_words[1])+2:2]]
+            outamounts=[int(x) for x in message_words[message_words[2:].index(message_words[1])+3::2]][:len(inids)]
         except:
             #not all amounts were ints
             return False
