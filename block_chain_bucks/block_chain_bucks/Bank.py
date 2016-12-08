@@ -1,7 +1,7 @@
 import os
 import socket
 from .crypto import RSA
-from block_chain_bucks import Block
+from block_chain_bucks import Block, BlockChain
 from Crypto.Hash.SHA256 import SHA256Hash as SHA256
 
 
@@ -16,17 +16,17 @@ class Bank:
                                    , socket.SOCK_DGRAM
                                    )
         self.socket.bind(("", port))
-        pubkey=RSA.key_from_file(public_key_file)
         self.rsa = RSA()
-        sha = SHA256()
-        sha.update(self.pubkey)
-        self.identity=sha.hexdigest()
-        genesis_block=Block( identity, identity+b" 0"+ identity+b" 1000000")
-        self.blockchain=BlockChain(genesis_block)
         if public_key_file is not None:
+            pubkey=RSA.key_from_file(public_key_file)
             self.rsa.set_public_key(pubkey)
         if private_key_file is not None:
             self.rsa.set_private_key(RSA.key_from_file(private_key_file))
+        sha = SHA256()
+        sha.update(pubkey.exportKey())
+        self.identity=sha.digest()
+        genesis_block=Block( self.identity, self.identity+b" 0"+ self.identity+b" 1000000")
+        self.blockchain=BlockChain(genesis_block)
 
     def find_balance(self,id):
         for block in reversed(self.blockchain):
