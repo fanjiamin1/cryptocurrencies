@@ -11,21 +11,22 @@ ENCODING = "utf-8"
 
 
 class Bank:
-    def __init__(self, port=9001, public_key_file=None, private_key_file=None):
+    def __init__(
+                  self
+                , port=9001
+                , keys=None
+                , identity=None  # TODO
+                ):
+        # Initialize socket
         self.socket = socket.socket(
                                      socket.AF_INET
                                    , socket.SOCK_DGRAM
                                    )
         self.socket.bind(("", port))
-        self.rsa = RSA()
-        if public_key_file is not None and private_key_file is not None:
-            public_key = RSA.key_from_file(public_key_file)
-            self.rsa.set_public_key(public_key)
-            self.rsa.set_private_key(RSA.key_from_file(private_key_file))
-        else:
-            raise Exception  # TODO
-        self.identity = SHA256(public_key.exportKey()).hexdigest()
-        # 
+        # Initialize key dictionary and identity
+        self.keys = keys
+        self.identity = identity
+        # Initialize block chain
         genesis_payload = "".join((
                                     "pay "
                                   , self.identity
@@ -57,25 +58,28 @@ class Bank:
         except:
             #this means we have a malformed transaction in the block-chain
             system.exit("blockchain contained invalid transfer or balance checking is bugged")
-    def start(self):
-        while True:
-            for block in self.block_chain:
-                print(block)
-            data, address = self.socket.recvfrom(BUFSIZE)
-            if data:
-                try:
-                    message = data.decode()
-                    message_words = message.split(' ')
-                    command = message_words[0].lower()
 
-                    if command == "pay":
-                        self.pay(message_words, address)
-                    elif command == "query":
-                        self.query(message_words, address)
-                    else:
-                        self.invalid(message_words, address)
-                except Exception as e:
-                    print("EXCEPTION:", e)
+    def start(self):
+        try:
+            while True:
+                data, address = self.socket.recvfrom(BUFSIZE)
+                if data:
+                    try:
+                        message = data.decode()
+                        message_words = message.split(' ')
+                        command = message_words[0].lower()
+
+                        if command == "pay":
+                            self.pay(message_words, address)
+                        elif command == "query":
+                            self.query(message_words, address)
+                        else:
+                            self.invalid(message_words, address)
+                    except Exception as e:
+                        print("EXCEPTION:", e)
+        except KeyboardInterrupt:
+            print()
+            print("Closing bank for now")
 
     def check_pay_command(self,message_words):
         #checks whether or not transaction can be added to blockchain
@@ -167,11 +171,41 @@ class Bank:
         self.socket.sendto(b"Invalid request", address)
 
 
+def _get_identity_from_key_file(file_name):
+    return SHA256(RSA.key_from_file(file_name).exportKey()).hexdigest()
+
+
 if __name__ == "__main__":
     module_directory = os.path.split(os.path.dirname(__file__))[0]
     root_directory = os.path.split(module_directory)[0]
     key_directory = os.path.join(root_directory, "keys")
-    public_key_file = os.path.join(key_directory, "bank_public.rsk")
-    private_key_file = os.path.join(key_directory, "bank_private.rsk")
-    bank = Bank(public_key_file=public_key_file, private_key_file=private_key_file)
+
+    # Construct absolute paths to key files
+    bank_public_key_file = os.path.join(key_directory, "bank_public.rsk")
+    hugo_public_key_file = os.path.join(key_directory, "hugo_public.rsk")
+    ivar_public_key_file = os.path.join(key_directory, "ivar_public.rsk")
+    ragnar_public_key_file = os.path.join(key_directory, "ragnar_public.rsk")
+
+    # Load keys
+    bank_public_key = RSA.key_from_file(bank_public_key_file)
+    hugo_public_key = RSA.key_from_file(hugo_public_key_file)
+    ivar_public_key = RSA.key_from_file(ivar_public_key_file)
+    ragnar_public_key = RSA.key_from_file(ragnar_public_key_file)
+
+    # Construct identities from keys
+    bank_identity = SHA256(bank_public_key.exportKey()).hexdigest()
+    hugo_identity = SHA256(hugo_public_key.exportKey()).hexdigest()
+    ivar_identity = SHA256(ivar_public_key.exportKey()).hexdigest()
+    ragnar_identity = SHA256(ragnar_public_key.exportKey()).hexdigest()
+
+    keys = {
+             bank_identity: bank_public_key
+           , hugo_identity: hugo_public_key
+           , ivar_identity: ivar_public_key
+           , ragnar_identity: ragnar_public_key
+           }
+
+    print(keys)
+
+    bank = Bank(keys=keys, identity=bank_identity)
     bank.start()

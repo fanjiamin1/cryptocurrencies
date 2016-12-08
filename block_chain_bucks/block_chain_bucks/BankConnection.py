@@ -34,8 +34,10 @@ class BankConnection:
         message = message.encode()
         self.socket.sendto(message, self.address)
 
+
 def _get_identity_from_key_file(file_name):
     return SHA256(RSA.key_from_file(file_name).exportKey()).hexdigest()
+
 
 if __name__ == "__main__":
     module_directory = os.path.split(os.path.dirname(__file__))[0]
