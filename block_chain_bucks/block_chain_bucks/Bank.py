@@ -51,7 +51,6 @@ class Bank:
             data, address = self.socket.recvfrom(BUFSIZE)
             if data:
                 try:
-                    message = self.rsa.decrypt(data)
                     message = message.decode()
                     message_words = message.split(' ')
                     command = message_words[0].lower()

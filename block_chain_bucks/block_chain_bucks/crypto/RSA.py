@@ -1,10 +1,13 @@
 import Crypto.PublicKey.RSA
 
 
+ENCODING = "utf-8"
+
+
 class RSA:
-    def __init__(self):
-        self._public_key = None
-        self._private_key = None
+    def __init__(self, public_key=None, private_key=None):
+        self._public_key = public_key
+        self._private_key = private_key
 
     @classmethod
     def random(cls):
