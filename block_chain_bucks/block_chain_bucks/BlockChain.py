@@ -1,3 +1,4 @@
+from builtins import tuple as _tuple
 from Crypto.Hash.SHA256 import SHA256Hash as SHA256
 from collections import namedtuple
 
@@ -7,18 +8,26 @@ class Block(namedtuple("BlockBaseClass", ("hash_pointer", "payload"))):
     PAYLOAD_SIZE = 2**10  # 1 Kilobyte
     HASH_POINTER_SIZE = 32  # Bytes
 
-    def __init__(self, hash_pointer, payload):
+    def __new__(_cls, hash_pointer, payload):
         if not isinstance(hash_pointer, (bytes, bytearray)):
-            message = "{} object is not bytes/bytearray".format(repr(hash_pointer))
+            message = "'{}' object is not bytes/bytearray"
+            message = message.format(type(hash_pointer).__name__)
             raise TypeError(message)
         if len(hash_pointer) != Block.HASH_POINTER_SIZE:
-            message = "Non-{} byte hash length".format(Block.HASH_POINTER_SIZE)
+            message = "Non-{} byte hash length"
+            message = message.format(Block.HASH_POINTER_SIZE)
             raise ValueError(message)
         if not isinstance(payload, (bytes, bytearray)):
-            payload = bytearray(payload, ENCODING)
+            if isinstance(payload, str):
+                payload = bytearray(payload, Block.ENCODING)
+            else:
+                message = "'{}' object is neither bytes/bytearray nor string"
+                message = message.format(type(payload).__name__)
+                raise TypeError(message)
         if len(payload) > Block.PAYLOAD_SIZE:
             message = "Payload exceeds maximum payload size"
             raise ValueError(message)
+        return _tuple.__new__(_cls, (hash_pointer, payload))
 
     def hash(self):
         sha = SHA256()
@@ -52,7 +61,9 @@ class BlockChain:
         chain = self
         for index in range(1, len(self)):
             block = chain[index]
-            assert block.hash_pointer == last_hash
+            if block.hash_pointer != last_hash:
+                message = "Block chain integrity compromise at index "
+                raise RuntimeError(message + str(index))
             last_hash = block.hash()
 
 
