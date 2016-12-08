@@ -46,6 +46,7 @@ class Bank:
                     print("EXCEPTION:", e)
 
     def check_pay_command(self,message_words):
+        #checks whether or not transaction can be added to blockchain
         inids=message_words[1:message_words[2:].index(message_words[1])+2:2]
         outids=message_words[message_words[2:].index(message_words[1])+2::2]
         try:

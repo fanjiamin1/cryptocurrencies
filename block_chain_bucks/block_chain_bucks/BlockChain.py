@@ -39,10 +39,13 @@ class BlockChain:
             transaction_words=block.payload.split(' ')
             out_id_index=-1
             if id in transaction:
+                #pythonic way of finding output part of the id
                 out_id_index=transaction_words[:transaction_words.index(id)+1].index(id)+transaction_words.index(id)+1
                 out_amount_index = out_id_index+1
                 break
             if out_id_index==-1:
+                #TODO:need to account for founder transaction
+                #otherwise no balance can ever exist
                 return 0
         try:
             return int(transaction_words[out_amount_index])
