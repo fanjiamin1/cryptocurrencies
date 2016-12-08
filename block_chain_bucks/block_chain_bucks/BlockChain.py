@@ -66,7 +66,6 @@ class BlockChain:
                 raise RuntimeError(message + str(index))
             last_hash = block.hash()
 
-
     def __str__(self):
         result = [repr(block) for block in self]
         return " <- ".join(result)

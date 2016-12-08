@@ -52,5 +52,5 @@ if __name__ == "__main__":
     ragnar_identity = _get_identity_from_key_file(ragnar_public_key_file)
 
     bank_connection = BankConnection()
-    for _ in range(5):
+    for _ in range(2):
         bank_connection.pay((ragnar_identity, 2), (ivar_identity, -1), (hugo_identity, -1))
