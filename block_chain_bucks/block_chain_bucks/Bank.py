@@ -1,4 +1,5 @@
 import os
+import sys
 import socket
 from .crypto import RSA
 from block_chain_bucks import Block, BlockChain
@@ -17,16 +18,26 @@ class Bank:
                                    )
         self.socket.bind(("", port))
         self.rsa = RSA()
-        if public_key_file is not None:
-            pubkey=RSA.key_from_file(public_key_file)
-            self.rsa.set_public_key(pubkey)
-        if private_key_file is not None:
+        if public_key_file is not None and private_key_file is not None:
+            public_key = RSA.key_from_file(public_key_file)
+            self.rsa.set_public_key(public_key)
             self.rsa.set_private_key(RSA.key_from_file(private_key_file))
-        sha = SHA256()
-        sha.update(pubkey.exportKey())
-        self.identity=sha.digest()
-        genesis_block=Block( self.identity, self.identity+b" 0"+ self.identity+b" 1000000")
-        self.blockchain=BlockChain(genesis_block)
+        else:
+            raise Exception  # TODO
+        self.identity = SHA256(public_key.exportKey()).hexdigest()
+        # 
+        genesis_payload = "".join((
+                                    "pay "
+                                  , self.identity
+                                  , " 0 "
+                                  , self.identity
+                                  , " 1000"
+                                  ))
+        genesis_block = Block(
+                               SHA256(self.identity.encode()).digest()
+                             , genesis_payload
+                             )
+        self.block_chain = BlockChain(genesis_block)
 
     def find_balance(self,id):
         for block in reversed(self.blockchain):
@@ -48,18 +59,14 @@ class Bank:
             system.exit("blockchain contained invalid transfer or balance checking is bugged")
     def start(self):
         while True:
+            for block in self.block_chain:
+                print(block)
             data, address = self.socket.recvfrom(BUFSIZE)
             if data:
                 try:
-                    message = message.decode()
+                    message = data.decode()
                     message_words = message.split(' ')
                     command = message_words[0].lower()
-
-                    self.rsa.set_public_key(query.get_key(message_words[1]))
-                    signature = message_words[-1]
-                    verifiable_message = "".join(message_words[:-1])
-                    signature = int(signature)
-                    assert self.rsa.verify(verifiable_message, signature)
 
                     if command == "pay":
                         self.pay(message_words, address)
