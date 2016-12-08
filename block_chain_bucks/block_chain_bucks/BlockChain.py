@@ -3,6 +3,23 @@ from collections import namedtuple
 
 
 class Block(namedtuple("BlockBaseClass", ("hash_pointer", "payload"))):
+    ENCODING = "utf-8"
+    PAYLOAD_SIZE = 2**10  # 1 Kilobyte
+    HASH_POINTER_SIZE = 32  # Bytes
+
+    def __init__(self, hash_pointer, payload):
+        if not isinstance(hash_pointer, (bytes, bytearray)):
+            message = "{} object is not bytes/bytearray".format(repr(hash_pointer))
+            raise TypeError(message)
+        if len(hash_pointer) != Block.HASH_POINTER_SIZE:
+            message = "Non-{} byte hash length".format(Block.HASH_POINTER_SIZE)
+            raise ValueError(message)
+        if not isinstance(payload, (bytes, bytearray)):
+            payload = bytearray(payload, ENCODING)
+        if len(payload) > Block.PAYLOAD_SIZE:
+            message = "Payload exceeds maximum payload size"
+            raise ValueError(message)
+
     def hash(self):
         sha = SHA256()
         sha.update(self.hash_pointer)
@@ -11,7 +28,11 @@ class Block(namedtuple("BlockBaseClass", ("hash_pointer", "payload"))):
 
 
 class BlockChain:
-    def __init__(self, genesis_block=Block(b"Am I Very Wrong?", b"No")):
+    def __init__(self, genesis_block=None):
+        if genesis_block is None:
+            payload = b"Am I Very Wrong?"
+            hash_pointer = SHA256(payload).digest()
+            genesis_block = Block(hash_pointer, payload)
         self.blocks = [genesis_block]
 
     @property
@@ -35,7 +56,7 @@ class BlockChain:
             last_hash = block.hash()
 
     def find_balance(self,id):
-        for block in self.blocks[::-1]:
+        for block in reversed(self):
             transaction_words=block.payload.split(' ')
             out_id_index=-1
             if id in transaction:
@@ -49,9 +70,6 @@ class BlockChain:
         except:
             #this means we have a malformed transaction in the block-chain
             system.exit("blockchain contained invalid transfer or balance checking is bugged")
-
-            
-
 
     def __str__(self):
         result = [repr(block) for block in self]
