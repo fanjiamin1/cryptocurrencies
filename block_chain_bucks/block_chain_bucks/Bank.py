@@ -1,3 +1,4 @@
+import os
 import socket
 from .crypto import RSA
 
@@ -136,7 +137,9 @@ class Bank:
 
 
 if __name__ == "__main__":
-    key_directory = os.path.join(os.path.split(os.path.dirname(__file__))[0], "keys")
+    module_directory = os.path.split(os.path.dirname(__file__))[0]
+    root_directory = os.path.split(module_directory)[0]
+    key_directory = os.path.join(root_directory, "keys")
     public_key_file = os.path.join(key_directory, "bank_public.rsk")
     private_key_file = os.path.join(key_directory, "bank_private.rsk")
     bank = Bank(public_key_file=public_key_file, private_key_file=private_key_file)
