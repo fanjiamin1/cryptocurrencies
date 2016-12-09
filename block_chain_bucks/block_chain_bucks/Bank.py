@@ -39,13 +39,13 @@ class Bank:
                                SHA256(self.identity.encode()).digest()
                              , genesis_payload
                              )
-        self.block_chain = BlockChain(genesis_block)
+        self.blockchain = BlockChain(genesis_block)
 
     def find_balance(self,id):
         for block in reversed(self.blockchain):
             transaction_words=block.payload.decode(Block.ENCODING).split(' ')
             out_id_index=-1
-            if id in transaction:
+            if id in transaction_words:
                 #pythonic way of finding output part of the id
                 out_id_index=transaction_words[:transaction_words.index(id)+1].index(id)+transaction_words.index(id)+1
                 out_amount_index = out_id_index+1
@@ -65,7 +65,7 @@ class Bank:
             while True:
                 print("--------------------------------"*2)
                 print("BLOCKCHAIN STATUS:")
-                for block in self.block_chain:
+                for block in self.blockchain:
                     print("\t", str(block.payload)[:64], "...")
                 print("--------------------------------"*2)
                 data, address = self.socket.recvfrom(BUFSIZE)
@@ -92,7 +92,7 @@ class Bank:
         inids=message_words[1:message_words[2:].index(message_words[1])+2:2]
         outids=message_words[message_words[2:].index(message_words[1])+2::2][:len(inids)]
         try:
-            inamounts=[int(x) for x in message_words[3:message_words[2:].index(message_words[1])+2:2]]
+            inamounts=[int(x) for x in message_words[2:message_words[2:].index(message_words[1])+2:2]]
             outamounts=[int(x) for x in message_words[message_words[2:].index(message_words[1])+3::2]][:len(inids)]
         except:
             #not all amounts were ints
@@ -106,11 +106,9 @@ class Bank:
         #command is well-formed at this point
         #the below multiline comment will verify that account balances allow
         #the operation
-        """
         for i in range(len(inamounts)):
-            if self.blockchain.balance(inids[i])<inamounts[i]:
+            if self.find_balance(inids[i])<=inamounts[i]:
                 return False
-        """
 
         return True
 
@@ -118,6 +116,7 @@ class Bank:
 
 
     def pay(self, message_words, address):
+        self.check_pay_command(message_words)
         print("Payment request processing...")
         #As I currently understand it, commands should still take the form
         #pay person1 (amount person 1 wants to spend) person 2 (amount person 2 wants to spend) ...
@@ -130,12 +129,12 @@ class Bank:
         #and submit them to the blockchain
         inids=message_words[1:message_words[2:].index(message_words[1])+2:2]
         outids=message_words[message_words[2:].index(message_words[1])+2::2]
-        inamounts=[int(x) for x in message_words[3:message_words[2:].find(message_words[1])+2:2]]
+        inamounts=[int(x) for x in message_words[2:message_words[2:].index(message_words[1])+2:2]]
         outamounts=[int(x) for x in message_words[message_words[2:].index(message_words[1])+3::2]]
 
         #reformats so inamounts[i] is starting balance and outamounts[i] is ending balance
         for i in range(len(inids)):
-            balance=self.blockchain.balance(inids[i])
+            balance=self.find_balance(inids[i])
             outamounts[i]=balance-inamounts[i]+outamounts[i]
             inamounts[i]=balance
         #reassemble final string
