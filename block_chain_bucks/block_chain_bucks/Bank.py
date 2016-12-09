@@ -24,6 +24,7 @@ class Bank:
                                    )
         self.socket.bind(("", port))
         # Initialize key dictionary and identity
+        # where is the key dictionary?
         self.keys = keys
         self.identity = identity
         # Initialize block chain
