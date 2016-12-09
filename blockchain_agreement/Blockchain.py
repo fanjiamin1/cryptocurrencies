@@ -5,8 +5,9 @@ from collections import namedtuple
 
 class Block(namedtuple("BlockBaseClass", ("hash_pointer", "payload"))):
     ENCODING = "utf-8"
-    PAYLOAD_SIZE = 2**10  # 1 Kilobyte
+    BLOCK_SIZE = 2**10  # 1 Kilobyte
     HASH_POINTER_SIZE = 32  # Bytes
+    PAYLOAD_SIZE = BLOCK_SIZE - HASH_POINTER_SIZE
 
     def __new__(_cls, hash_pointer, payload):
         if not isinstance(hash_pointer, (bytes, bytearray)):
