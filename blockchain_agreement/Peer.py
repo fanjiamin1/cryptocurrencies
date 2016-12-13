@@ -23,7 +23,7 @@ s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
 # Build genesis block
 # 32 bytes of padding+timestamp
-genesis_payload = time.ctime(1000000000).zfill(Block.HASH_POINTER_SIZE).encode()
+genesis_payload = time.ctime(1000198000).zfill(Block.HASH_POINTER_SIZE).encode()
 # Block.PAYLOAD_SIZE-32-32-1-16 bytes of documents+padding
 genesis_payload += encrypted_this.encode().ljust(Block.PAYLOAD_SIZE - 32 - 32 - 1 - 16)
 # 32 byte counter starting from zero
