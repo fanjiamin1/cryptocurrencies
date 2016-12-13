@@ -19,6 +19,7 @@ sys.stdout = actual_stdout
 
 
 DOCSIZE = Block.PAYLOAD_SIZE - 32 - 32 - 1 - 16
+DIFFICULTY = 20
 
 
 # Build genesis block
@@ -29,7 +30,7 @@ genesis_payload += rot_13_this.encode().ljust(DOCSIZE)
 # 32 byte counter starting from zero
 genesis_payload += bytes(32)
 # 1 byte representing difficulty of work
-genesis_payload += bytes([24])
+genesis_payload += bytes([DIFFICULTY])
 # And then there is space of 16 bytes for nonce
 genesis_payload += b"\x17"*16
 #print("---------------------------------------------")
@@ -78,7 +79,7 @@ class Thrall(threading.Thread):
         self.prehash.update(old_counter)  # TODO
         difficulty = latest_block.payload[-16-1:-16]
         assert len(difficulty) == 1
-        assert difficulty[0] == 24
+        assert difficulty[0] == DIFFICULTY
         self.difficulty = difficulty[0]
         self.prehash.update(difficulty)
 
