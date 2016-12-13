@@ -3,6 +3,7 @@ import random
 import threading
 import time
 import sys
+import os
 import pickle
 import collections
 from hashlib import sha256 as Hash
@@ -78,31 +79,38 @@ class Thrall(threading.Thread):
         difficulty = latest_block.payload[-16-1:-16]
         assert len(difficulty) == 1
         assert difficulty[0] == 24
+        self.difficulty = difficulty[0]
         self.prehash.update(difficulty)
 
         # Other attributes
         self.stopped = False
         self.found = False
+        self.result = None
 
         super(Thrall, self).__init__()
 
     def stop(self):
         self.stopped = True
 
-    def myhash(self):
-        return 1
-        #temphash = self.prehash.copy()
-        #temphash.update(str.encode(str(self.nonce)))
-        #self.nonce+=1
-        #return temphash.digest()
+    def hash(self):
+        temp_hash = self.prehash.copy()
+        nonce = os.urandom(16)
+        temp_hash.update(nonce)
+        digest = temp_hash.digest()
+        return nonce, digest
+
+    def _trailing_zero_count(self, some_bytes):
+        # Dumb trailing zero bit counting... stupid Thrall
+        bit_str = bin(int(some_bytes.hex(), 16))
+        return len(bit_str) - len(bit_str.rstrip('0'))
 
     def run(self):
         while not self.stopped:
-            pass
-            #guess = hash()
-            #if myHash[0:len(target)] == target:
-            #    self.found=True
-            #    return
+            nonce, digest = self.hash()
+            if self._trailing_zero_count(digest) < self.difficulty:
+                self.result = nonce
+                self.found = True
+                return
 
 
 class Miner(threading.Thread):
@@ -122,13 +130,11 @@ class Miner(threading.Thread):
                     continue
                 self.blockchain = blockchain
                 break
-        print(self.blockchain)
         payload = b"I, miner number "
         payload += bytes([ord(str(self.id_number))])
         payload += b" did this!"
-        print(payload)
         self.slave = Thrall(blockchain.latest_block, payload)
-        self.slave.run()
+        self.slave.start()
         while self.slave.found is False:
             pass
         print(self.slave.result)
