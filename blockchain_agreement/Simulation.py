@@ -5,20 +5,14 @@ import time
 import sys
 from StoppableHashThread import StoppableHashThread
 from Blockchain import Block, Blockchain
+
+
+# Import rot 13 this without printing to stdout
 from io import StringIO
 actual_stdout = sys.stdout
 sys.stdout = StringIO()
-from this import s as encrypted_this
+from this import s as rot_13_this
 sys.stdout = actual_stdout
-
-
-s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-#port = random.randint(1000, 10000)
-#address = ("127.0.0.1", port)
-#s.bind(address)
-#print("Running peer listening on address:", address)
 
 
 # Build genesis block
@@ -39,17 +33,12 @@ print("---------------------------------------------")
 genesis_block = Block(b"\x17"*Block.HASH_POINTER_SIZE, genesis_payload)
 
 
-# Initialize blockchain with genesis block
-blockchain = Blockchain(genesis_block)
+# Communication variables
+communication_lock = threading.Lock()
 
 
-#worker = StoppableHashThread()
-
-
-# Broadcast test TODO Define function to broadcast?
-s.sendto(b"Greetings!", ("<broadcast>", 54545))
-print("Broadcasted greeting")
-
-
-while True:
-    pass
+if __name__ == "__main__":
+    args = sys.argv[1:]
+    print(args)
+    while True:
+        pass
