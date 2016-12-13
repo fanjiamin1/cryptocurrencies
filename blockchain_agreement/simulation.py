@@ -107,8 +107,8 @@ class Thrall(threading.Thread):
     def run(self):
         while not self.stopped:
             nonce, digest = self.hash()
-            if self._trailing_zero_count(digest) < self.difficulty:
-                self.result = nonce
+            if self._trailing_zero_count(digest) >= self.difficulty:
+                self.result = (nonce, digest)
                 self.found = True
                 return
 
@@ -133,12 +133,27 @@ class Miner(threading.Thread):
         payload = b"I, miner number "
         payload += bytes([ord(str(self.id_number))])
         payload += b" did this!"
-        self.slave = Thrall(blockchain.latest_block, payload)
-        self.slave.start()
-        while self.slave.found is False:
-            pass
-        print(self.slave.result)
-        self.slave.join()
+        while True:
+            # Create new slave to find good nonce
+            self.slave = Thrall(blockchain.latest_block, payload)
+            self.slave.start()
+            while True:
+                if self.slave.found is True:
+                    # Found nonce! Should try to get block on chain!
+                    break
+                else:
+                    # Did not find good nonce yet...
+                    pass
+                if sockets[self.id_number]:
+                    # Some message waiting on socket! Should read
+                    pass
+                else:
+                    # No messages for miner...
+                    pass
+            print(self.slave.result)
+            # Kill slave despite his efforts
+            self.slave.join()
+            break
 
 
 if __name__ == "__main__":
