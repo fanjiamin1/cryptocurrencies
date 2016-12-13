@@ -1,5 +1,8 @@
 import threading
-from Crypto.Hash import SHA256 as SHA
+
+
+from hashlib import sha256 as SHA
+
 
 class StoppableHashThread(threading.Thread):
     """
