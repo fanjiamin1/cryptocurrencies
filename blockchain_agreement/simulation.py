@@ -19,29 +19,7 @@ sys.stdout = actual_stdout
 
 
 DOCSIZE = Block.PAYLOAD_SIZE - 32 - 32 - 1 - 16
-DIFFICULTY = 20
-
-
-# Build genesis block
-# 32 bytes of padding+timestamp
-genesis_payload = time.ctime(1000198000).zfill(Block.HASH_POINTER_SIZE).encode()
-# Block.PAYLOAD_SIZE-32-32-1-16 bytes of documents+padding
-genesis_payload += rot_13_this.encode().ljust(DOCSIZE)
-# 32 byte counter starting from zero
-genesis_payload += bytes(32)
-# 1 byte representing difficulty of work
-genesis_payload += bytes([DIFFICULTY])
-# And then there is space of 16 bytes for nonce
-genesis_payload += b"\x17"*16
-#print("---------------------------------------------")
-#print("GENESIS PAYLOAD (of length {}):".format(len(genesis_payload)))
-#print(genesis_payload)
-#print("---------------------------------------------")
-genesis_block = Block(b"\x17"*Block.HASH_POINTER_SIZE, genesis_payload)
-
-
-# The genesis block chain
-blockchain = Blockchain(genesis_block)
+DIFFICULTY = None
 
 
 # Communication variables
@@ -49,12 +27,32 @@ communication_lock = threading.Lock()
 sockets = []
 miner_ids = []
 miners = []
+broadcast_counter = 0
+
+
+def pretty_blockchain(bc):
+    result = ["Blockchain at {}\n".format(id(bc))]
+    index = 0
+    for block in bc:
+        result.append("\t")
+        result.append("Block {}\n".format(index))
+        result.append("\t\t")
+        result.append(repr(block.hash_pointer[:16]))
+        result.append("...\n")
+        result.append("\t\t")
+        result.append(repr(block.payload[:32]))
+        result.append("...\n")
+        index += 1
+    return "".join(result)
 
 
 def broadcast(byte_array):
+    global broadcast_counter
     with communication_lock:
         for socket in sockets:
             socket.append(byte_array)
+        broadcast_counter += 1
+
 
 def read_socket(miner_id):
     try:
@@ -65,23 +63,12 @@ def read_socket(miner_id):
 
 
 class Thrall(threading.Thread):
-    def __init__(self, latest_block, payload):
+    def __init__(self, hash_ptr_digest, prehash_components, difficulty):
+        self.difficulty = difficulty
+
         # Prehash
-        hash_ptr = Hash()
-        hash_ptr.update(latest_block.hash_pointer)
-        hash_ptr.update(latest_block.payload)
-        self.prehash = Hash()
-        self.prehash.update(hash_ptr.digest())
-        self.prehash.update(time.ctime().zfill(Block.HASH_POINTER_SIZE).encode())
-        self.prehash.update(payload.zfill(DOCSIZE))
-        old_counter = latest_block.payload[-17-32:-17]
-        assert len(old_counter) == 32
-        self.prehash.update(old_counter)  # TODO
-        difficulty = latest_block.payload[-16-1:-16]
-        assert len(difficulty) == 1
-        assert difficulty[0] == DIFFICULTY
-        self.difficulty = difficulty[0]
-        self.prehash.update(difficulty)
+        self.prehash = Hash(hash_ptr_digest)
+        filter(self.prehash.update, prehash_components)  # Lol @ readability
 
         # Other attributes
         self.stopped = False
@@ -101,9 +88,26 @@ class Thrall(threading.Thread):
         return nonce, digest
 
     def _trailing_zero_count(self, some_bytes):
-        # Dumb trailing zero bit counting... stupid Thrall
         bit_str = bin(int(some_bytes.hex(), 16))
         return len(bit_str) - len(bit_str.rstrip('0'))
+        ## Alternative, maybe faster?
+        #index = 1
+        #total = 0
+        #mask = 1
+        #while True:
+        #    b = some_bytes[-index]
+        #    if b == 0:
+        #        total += 8
+        #        if index == len(some_bytes):
+        #            return total
+        #        index += 1
+        #    else:
+        #        for value in range(8):
+        #            if b & mask != 0:
+        #                total += value
+        #                return total
+        #            else:
+        #                mask *= 2
 
     def run(self):
         while not self.stopped:
@@ -117,6 +121,7 @@ class Thrall(threading.Thread):
 class Miner(threading.Thread):
     def __init__(self, id_number):
         self.id_number = id_number
+        self.stopped = False
         super(Miner, self).__init__()
 
     def run(self):
@@ -125,46 +130,120 @@ class Miner(threading.Thread):
             if message is None:
                 continue
             else:
-                blockchain = pickle.loads(message)
-                if not isinstance(blockchain, Blockchain):
+                self.blockchain = pickle.loads(message)
+                if not isinstance(self.blockchain, Blockchain):
                     print("Surprising junk on mah socket, bby")
                     continue
-                self.blockchain = blockchain
                 break
-        payload = b"I, miner number "
-        payload += bytes([ord(str(self.id_number))])
-        payload += b" did this!"
-        while True:
+        barrier.wait()
+        payload_comment = b"I, miner number "
+        payload_comment += bytes([ord(str(self.id_number))])
+        payload_comment += b" did this!"
+        while not self.stopped:
+            # Do some work that the slave can't be trusted to do
+            latest_block = self.blockchain.latest_block
+            hash_ptr = Hash()
+            hash_ptr.update(latest_block.hash_pointer)
+            hash_ptr.update(latest_block.payload)
+            payload_components = []
+            payload_components.append(time.ctime().zfill(Block.HASH_POINTER_SIZE).encode())
+            payload_components.append(payload_comment.zfill(DOCSIZE))
+            old_counter = latest_block.payload[-17-32:-17]
+            assert len(old_counter) == 32
+            payload_components.append(old_counter)  # TODO
+            difficulty = latest_block.payload[-16-1:-16]
+            assert len(difficulty) == 1
+            assert difficulty[0] == DIFFICULTY
+            payload_components.append(difficulty)
             # Create new slave to find good nonce
-            self.slave = Thrall(blockchain.latest_block, payload)
+            self.slave = Thrall(hash_ptr.digest(), payload_components, difficulty[0])
             self.slave.start()
+            self.blockchain.verify()  # TODO: Might fail?
             while True:
                 if self.slave.found is True:
                     # Found nonce! Should try to get block on chain!
+                    print(self.slave.result)
+                    nonce = self.slave.result[0]
+                    payload_components.append(nonce)
+                    payload = b"".join(payload_components)
+                    self.blockchain.append(payload)
                     break
                 else:
-                    # Did not find good nonce yet...
-                    pass
+                    pass  # Did not find good nonce yet...
                 if sockets[self.id_number]:
                     # Some message waiting on socket! Should read
+                    message = read_socket(self.id_number)
+                    obj = pickle.loads(message)
                     pass
                 else:
-                    # No messages for miner...
-                    pass
-            print(self.slave.result)
+                    pass  # No messages for miner...
             # Kill slave despite his efforts
             self.slave.join()
-            break
+        print(pretty_blockchain(self.blockchain))
+
+    def stop(self):
+        self.stopped = True
+
+
+class Interferer(threading.Thread):
+    def __init__(self):
+        self.stopped = False
+        super(Interferer, self).__init__()
+
+    def run(self):
+        global broadcast_counter
+        return
+        while not self.stopped:
+            if broadcast_counter % (10*total_miners) == 0:
+                with communication_lock:
+                    broadcast_counter = 0
+                    if not any(sockets):
+                        # No messages on sockets to sabotage
+                        continue
+                    print("Interferer doing naughty work!")
+                    while True:
+                        id_number = random.choice(miner_ids)
+                        message = read_socket(sockets[id_number])
+                        if message is not None:
+                            # Drop message
+                            break
+
+    def stop(self):
+        self.stopped = True
 
 
 if __name__ == "__main__":
     args = sys.argv[1:]
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit()
     try:
         total_miners = int(args[0])
+        DIFFICULTY = int(args[1])
     except:
         sys.exit()
+
+    # Build genesis block
+    # 32 bytes of padding+timestamp
+    genesis_payload = time.ctime(1000198000).zfill(Block.HASH_POINTER_SIZE).encode()
+    # Block.PAYLOAD_SIZE-32-32-1-16 bytes of documents+padding
+    genesis_payload += rot_13_this.encode().ljust(DOCSIZE)
+    # 32 byte counter starting from zero
+    genesis_payload += bytes(32)
+    # 1 byte representing difficulty of work
+    genesis_payload += bytes([DIFFICULTY])
+    # And then there is space of 16 bytes for nonce
+    genesis_payload += b"\x17"*16
+    #print("---------------------------------------------")
+    #print("GENESIS PAYLOAD (of length {}):".format(len(genesis_payload)))
+    #print(genesis_payload)
+    #print("---------------------------------------------")
+    genesis_block = Block(b"\x17"*Block.HASH_POINTER_SIZE, genesis_payload)
+
+    # Build the genesis block chain
+    blockchain = Blockchain(genesis_block)
+
+    # Barrier for miners and interferer
+    barrier = threading.Barrier(total_miners + 1)
 
     # Create miners
     for miner_id in range(total_miners):
@@ -182,5 +261,17 @@ if __name__ == "__main__":
         print("Starting miner", miner_id)
         miners[miner_id].start()
 
+    # Create socket interference and start when all miners have read genesis blockchain
+    barrier.wait()
+    interferer = Interferer()
+    interferer.start()
+
+    time.sleep(15)
+
+    for miner in miners:
+        miner.stop()
     for miner in miners:
         miner.join()
+
+    interferer.stop()
+    interferer.join()
