@@ -1,4 +1,3 @@
-import socket
 import random
 import threading
 import time
@@ -22,14 +21,19 @@ FILLCHAR = b"#"
 DOCSIZE = Block.PAYLOAD_SIZE - 32 - 32 - 1 - 16
 DIFFICULTY = None
 PREAMBLE = "Simulation of {} miners with difficulty {}"
+INTERFERENCE_EVERY = 4
 
 
 # Communication variables
-communication_lock = threading.Lock()
+communication_lock = threading.RLock()
 sockets = []
 miner_ids = []
 miners = []
 broadcast_counter = 0
+
+
+refresh_flag = threading.Event()
+interference_flag = threading.Event()
 
 
 def pretty_blockchain(bc):
@@ -56,6 +60,9 @@ def broadcast(own_miner_id, byte_array):
                 continue
             sockets[miner_id].append(byte_array)
         broadcast_counter += 1
+        if broadcast_counter >= INTERFERENCE_EVERY:
+            broadcast_counter = 0
+            interference_flag.set()
 
 
 def read_socket(miner_id):
@@ -182,6 +189,7 @@ class Miner(threading.Thread):
                     if len(received_blockchain) > len(self.blockchain):
                         assert self.blockchain != received_blockchain
                         self.blockchain = received_blockchain
+                        refresh_flag.set()
                         break
                     else:
                         # Ignore smaller blockchain; size matters!
@@ -202,6 +210,7 @@ class Miner(threading.Thread):
                             print("\t", len(c), ":", c)
                     self.blockchain.append(payload)
                     broadcast(self.id_number, pickle.dumps(self.blockchain))
+                    refresh_flag.set()
                     break
                 else:
                     pass  # Did not find good nonce yet...
@@ -211,6 +220,7 @@ class Miner(threading.Thread):
 
     def stop(self):
         self.stopped = True
+        interference_flag.set()
 
 
 class Interferer(threading.Thread):
@@ -219,16 +229,14 @@ class Interferer(threading.Thread):
         super(Interferer, self).__init__()
 
     def run(self):
-        global broadcast_counter
-        return
         while not self.stopped:
-            if broadcast_counter % (10*total_miners) == 0:
-                with communication_lock:
-                    broadcast_counter = 0
-                    if not any(sockets):
-                        # No messages on sockets to sabotage
-                        continue
-                    print("Interferer doing naughty work!")
+            interference_flag.wait()
+            interference_flag.clear()
+            with communication_lock:
+                if not any(sockets):
+                    # No messages on sockets to sabotage
+                    pass
+                else:
                     while True:
                         id_number = random.choice(miner_ids)
                         message = read_socket(sockets[id_number])
@@ -295,17 +303,43 @@ if __name__ == "__main__":
     interferer.start()
 
     try:
+        os.system('cls' if os.name == 'nt' else 'clear')
         while True:
+            screen = []
+            screen.append(PREAMBLE.format(total_miners, DIFFICULTY))
+            screen.append("\n")
+            length_leader = None
+            for miner_id in miner_ids:
+                mbc = miners[miner_id].blockchain
+                screen.append(str(miner_id))
+                screen.append(": ")
+                for block in mbc:
+                    screen.append("[")
+                    screen.append(repr(block.hash_pointer[0]%10))
+                    screen.append("]")
+                screen.append("\n")
             os.system('cls' if os.name == 'nt' else 'clear')
-            print(PREAMBLE.format(total_miners, DIFFICULTY))
-            time.sleep(1)
+            print("".join(screen))
+            refresh_flag.wait()
+            refresh_flag.clear()
+#        while True:
+#            os.system('cls' if os.name == 'nt' else 'clear')
+#            for miner_id in miner_ids:
+#                mbc = miners[miner_id].blockchain
+#                b = len(mbc) > 10
+#                print(miner_id,": ", "..." if b else "", end="", sep="")
+#                for block in mbc[-(9 if b else 10):]:
+#                    print("[", repr(block.hash_pointer[0]%10), "]", sep="", end="")
+#                print()
+#            time.sleep(DIFFICULTY/30)  # So bad
     except:
+        print()
         print("Simulation over, stopping participants")
 
     for miner in miners:
         miner.stop()
     for miner in miners:
-        with open("result.txt", "a") as f:
+        with open("result-"+time.ctime()+".txt", "a") as f:
             f.write(pretty_blockchain(miner.blockchain))
         miner.join()
 
