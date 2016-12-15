@@ -190,6 +190,7 @@ class Miner(threading.Thread):
                     pass  # No messages for miner...
                 if self.slave.found is True:
                     # Found nonce! Should try to get block on chain!
+                    self.slave.stop()
                     nonce = self.slave.result[0]
                     payload_components.append(nonce)
                     payload = b"".join(payload_components)
