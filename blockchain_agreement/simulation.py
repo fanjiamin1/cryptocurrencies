@@ -18,8 +18,10 @@ from this import s as rot_13_this
 sys.stdout = actual_stdout
 
 
+FILLCHAR = b"#"
 DOCSIZE = Block.PAYLOAD_SIZE - 32 - 32 - 1 - 16
 DIFFICULTY = None
+PREAMBLE = "Simulation of {} miners with difficulty {}"
 
 
 # Communication variables
@@ -46,11 +48,13 @@ def pretty_blockchain(bc):
     return "".join(result)
 
 
-def broadcast(byte_array):
+def broadcast(own_miner_id, byte_array):
     global broadcast_counter
     with communication_lock:
-        for socket in sockets:
-            socket.append(byte_array)
+        for miner_id in miner_ids:
+            if miner_id == own_miner_id:
+                continue
+            sockets[miner_id].append(byte_array)
         broadcast_counter += 1
 
 
@@ -139,6 +143,7 @@ class Miner(threading.Thread):
         payload_comment = b"I, miner number "
         payload_comment += bytes([ord(str(self.id_number))])
         payload_comment += b" did this!"
+        payload_comment = payload_comment.ljust(DOCSIZE, FILLCHAR)
         while not self.stopped:
             # Do some work that the slave can't be trusted to do
             latest_block = self.blockchain.latest_block
@@ -146,8 +151,8 @@ class Miner(threading.Thread):
             hash_ptr.update(latest_block.hash_pointer)
             hash_ptr.update(latest_block.payload)
             payload_components = []
-            payload_components.append(time.ctime().zfill(Block.HASH_POINTER_SIZE).encode())
-            payload_components.append(payload_comment.zfill(DOCSIZE))
+            payload_components.append(time.ctime().encode().ljust(Block.HASH_POINTER_SIZE, FILLCHAR))
+            payload_components.append(payload_comment)
             old_counter = latest_block.payload[-17-32:-17]
             assert len(old_counter) == 32
             payload_components.append(old_counter)  # TODO
@@ -158,28 +163,51 @@ class Miner(threading.Thread):
             # Create new slave to find good nonce
             self.slave = Thrall(hash_ptr.digest(), payload_components, difficulty[0])
             self.slave.start()
-            self.blockchain.verify()  # TODO: Might fail?
             while True:
-                if self.slave.found is True:
-                    # Found nonce! Should try to get block on chain!
-                    print(self.slave.result)
-                    nonce = self.slave.result[0]
-                    payload_components.append(nonce)
-                    payload = b"".join(payload_components)
-                    self.blockchain.append(payload)
+                if self.stopped:
                     break
-                else:
-                    pass  # Did not find good nonce yet...
                 if sockets[self.id_number]:
                     # Some message waiting on socket! Should read
                     message = read_socket(self.id_number)
-                    obj = pickle.loads(message)
-                    pass
+                    if message is None:
+                        continue
+                    received_blockchain = pickle.loads(message)
+                    try:
+                        received_blockchain.verify()
+                        if received_blockchain.genesis_block != self.blockchain.genesis_block:
+                            raise RuntimeError  # lol
+                    except RuntimeError:
+                        print("Miner", self.id_number, "received bogus blockchain")
+                        continue
+                    if len(received_blockchain) > len(self.blockchain):
+                        assert self.blockchain != received_blockchain
+                        self.blockchain = received_blockchain
+                        break
+                    else:
+                        # Ignore smaller blockchain; size matters!
+                        pass
                 else:
                     pass  # No messages for miner...
+                if self.slave.found is True:
+                    # Found nonce! Should try to get block on chain!
+                    nonce = self.slave.result[0]
+                    payload_components.append(nonce)
+                    payload = b"".join(payload_components)
+                    if len(payload) != Block.PAYLOAD_SIZE:
+                        print(len(nonce))
+                        print(len(payload))
+                        print(payload)
+                        print("Component lengths:")
+                        for c in payload_components:
+                            print("\t", len(c), ":", c)
+                    self.blockchain.append(payload)
+                    broadcast(self.id_number, pickle.dumps(self.blockchain))
+                    break
+                else:
+                    pass  # Did not find good nonce yet...
             # Kill slave despite his efforts
+            self.slave.stop()
             self.slave.join()
-        print(pretty_blockchain(self.blockchain))
 
     def stop(self):
         self.stopped = True
@@ -224,9 +252,9 @@ if __name__ == "__main__":
 
     # Build genesis block
     # 32 bytes of padding+timestamp
-    genesis_payload = time.ctime(1000198000).zfill(Block.HASH_POINTER_SIZE).encode()
+    genesis_payload = time.ctime(1000198000).encode().ljust(Block.HASH_POINTER_SIZE, FILLCHAR)
     # Block.PAYLOAD_SIZE-32-32-1-16 bytes of documents+padding
-    genesis_payload += rot_13_this.encode().ljust(DOCSIZE)
+    genesis_payload += rot_13_this.encode().ljust(DOCSIZE, FILLCHAR)
     # 32 byte counter starting from zero
     genesis_payload += bytes(32)
     # 1 byte representing difficulty of work
@@ -247,18 +275,18 @@ if __name__ == "__main__":
 
     # Create miners
     for miner_id in range(total_miners):
-        print("Creating miner", miner_id)
+        #print("Creating miner", miner_id)
         sockets.append(collections.deque())
         miner_ids.append(miner_id)
         miners.append(Miner(miner_id))
 
     # Broadcast block
-    print("Broadcasting genesis block in a single block blockchain")
-    broadcast(pickle.dumps(blockchain))
+    #print("Broadcasting genesis block in a single block blockchain")
+    broadcast(-1, pickle.dumps(blockchain))
 
     # Start miners
     for miner_id in miner_ids:
-        print("Starting miner", miner_id)
+        #print("Starting miner", miner_id)
         miners[miner_id].start()
 
     # Create socket interference and start when all miners have read genesis blockchain
@@ -266,11 +294,19 @@ if __name__ == "__main__":
     interferer = Interferer()
     interferer.start()
 
-    time.sleep(15)
+    try:
+        while True:
+            os.system('cls' if os.name == 'nt' else 'clear')
+            print(PREAMBLE.format(total_miners, DIFFICULTY))
+            time.sleep(1)
+    except:
+        print("Simulation over, stopping participants")
 
     for miner in miners:
         miner.stop()
     for miner in miners:
+        with open("result.txt", "a") as f:
+            f.write(pretty_blockchain(miner.blockchain))
         miner.join()
 
     interferer.stop()
