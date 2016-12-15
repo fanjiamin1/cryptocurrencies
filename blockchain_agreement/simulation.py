@@ -21,7 +21,7 @@ FILLCHAR = b"#"
 DOCSIZE = Block.PAYLOAD_SIZE - 32 - 32 - 1 - 16
 DIFFICULTY = None
 PREAMBLE = "Simulation of {} miners with difficulty {}"
-INTERFERENCE_EVERY = 4
+INTERFERENCE_EVERY = 3  # Remove a message from a socket every n-th time a message is broadcast
 
 
 # Communication variables
@@ -34,6 +34,7 @@ broadcast_counter = 0
 
 refresh_flag = threading.Event()
 interference_flag = threading.Event()
+interfered = []  # total interfered by interferer
 
 
 def pretty_blockchain(bc):
@@ -239,9 +240,10 @@ class Interferer(threading.Thread):
                 else:
                     while True:
                         id_number = random.choice(miner_ids)
-                        message = read_socket(sockets[id_number])
+                        message = read_socket(id_number)
                         if message is not None:
                             # Drop message
+                            interfered[id_number] += 1
                             break
 
     def stop(self):
@@ -285,6 +287,7 @@ if __name__ == "__main__":
     for miner_id in range(total_miners):
         #print("Creating miner", miner_id)
         sockets.append(collections.deque())
+        interfered.append(0)
         miner_ids.append(miner_id)
         miners.append(Miner(miner_id))
 
@@ -317,6 +320,13 @@ if __name__ == "__main__":
                     screen.append("[")
                     screen.append(repr(block.hash_pointer[0]%10))
                     screen.append("]")
+                screen.append("\n")
+            screen.append("Interfered messages:")
+            screen.append("\n")
+            for miner_id in miner_ids:
+                screen.append(str(miner_id))
+                screen.append(": ")
+                screen.append(str(interfered[miner_id]).rjust(4, " "))
                 screen.append("\n")
             os.system('cls' if os.name == 'nt' else 'clear')
             print("".join(screen))
