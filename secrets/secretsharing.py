@@ -13,6 +13,8 @@ def get_shares(k,n,S):
     #the highest order coefficient
     coefficients=[S]
     coefficients.extend(randint(1,topprime-1) for _ in range(k-1))
+    #confirm that the secret is indeed contained as the
+    #constant in the resulting polynomial
     assert S==evaluate_polynomial(0,coefficients)%topprime
 
     used_xvals=[]
@@ -70,16 +72,17 @@ def combine(k,n,p,shares):
     yvals=[x[1] for x in shares]
     secretsum=0
     for j in range(k):
-        denominator=yvals[j]
-        divisor=1
+        numerator=yvals[j]
+        denominator=1
         for l in range(k):
             if l!=j:
-                denominator=xvals[l]
-                divisor*=xvals[l]-xvals[j]
-        secretsum+=divmod(denominator,divisor,p)
+                numerator=(numerator*xvals[l])%p
+                denominator=(denominator*(xvals[l]-xvals[j]))%p
+        secretsum+=divmod(numerator,denominator,p)
     return secretsum%p
 
             
+    #the below should be equivalent to the above arithmetic
     denominators=[yvals[j]*reduce
                  (
                     lambda x,y: x*y,
@@ -99,6 +102,7 @@ def combine(k,n,p,shares):
         
 testsecret=9001
 
+testprime=13
 print(5*divmod(3,5,testprime) % testprime)
 p,shares=get_shares(3,5,testsecret)
 for share in shares:
