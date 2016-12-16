@@ -9,9 +9,11 @@ def get_shares(k,n,S):
     topprime=10009
     
     #want to create a polynomial of degree k-1 so we need k constants
-    #we dissallow coefficients of 0 for simplicity
+    #we dissallow coefficients of 0 for simplicity, we must avoid zero in
+    #the highest order coefficient
     coefficients=[S]
     coefficients.extend(randint(1,topprime-1) for _ in range(k-1))
+    assert S==evaluate_polynomial(0,coefficients)%topprime
 
     used_xvals=[]
     found_yvals=[]
@@ -19,7 +21,7 @@ def get_shares(k,n,S):
     for i in range(n):
         xval=randint(1,topprime-1)
         while xval in used_xvals:
-            #can be infinite, maybe do something about that,
+            #theoretically can be infinite, maybe do something about that,
             #call needs to be malfromed for that to happen though
             xval=randint(1,topprime-1)
         used_xvals.append(xval)
@@ -67,6 +69,17 @@ def combine(k,n,p,shares):
     xvals=[x[0] for x in shares]
     yvals=[x[1] for x in shares]
     secretsum=0
+    for j in range(k):
+        denominator=yvals[j]
+        divisor=1
+        for l in range(k):
+            if l!=j:
+                denominator=xvals[l]
+                divisor*=xvals[l]-xvals[j]
+        secretsum+=divmod(denominator,divisor,p)
+    return secretsum%p
+
+            
     denominators=[yvals[j]*reduce
                  (
                     lambda x,y: x*y,
@@ -75,8 +88,8 @@ def combine(k,n,p,shares):
                 for j in range(k)
                 ]
     divisors = [ reduce(
-                        lambda x,y: x*y,
-                        [xvals[i]-xvals[j] for i in range(k) if i!=j]
+                            lambda x,y: x*y,
+                            [xvals[i]-xvals[j] for i in range(k) if i!=j]
                        )
                 for j in range(k)
                 ]
@@ -86,15 +99,12 @@ def combine(k,n,p,shares):
         
 testsecret=9001
 
-print("testing divmod")
-print("3/4 * 4 in the module p should give 3")
-testprime=17
-print(4*divmod(3,4,testprime) % testprime)
+print(5*divmod(3,5,testprime) % testprime)
 p,shares=get_shares(3,5,testsecret)
 for share in shares:
     print(share)
 
-combinedsecret=combine(3,5,p,shares[:3])
+combinedsecret=combine(3,5,p,shares)
 print('original secret was:',testsecret)
 print('extracted secret was:',combinedsecret)
 
