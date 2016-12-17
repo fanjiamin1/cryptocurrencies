@@ -1,8 +1,89 @@
 from random import randint,choice
 from functools import reduce
 
+#TODO: 
+
+TOP_PRIME_PER_BYTE=251
+
+#takes in k,n for (k,n) threshold scheme to contain a secret string S
+#returns a list of shares, each share is a list of len(S) 2-tuples, each
+#of which is a share in one of the letters of the string S
+#also outputs the prime used in modular calculations, which is 251
+def get_byte_shares(k,n,S):
+    #the highest prime that can be contained in one byte
+    topprime=TOP_PRIME_PER_BYTE
+    
+    charactershares=[]
+    for character in S:
+        secret_number=ord(character)
+        print('character was:',character)
+        print('secret number was:',secret_number)
+        if secret_number>TOP_PRIME_PER_BYTE:
+            raise ValueError('Character:',character,'is not supported, it has an order over 251')
+        #want to create a polynomial of degree k-1 so we need k constants
+        #we dissallow coefficients of 0 for simplicity, we must avoid zero in
+        #the highest order coefficient
+        coefficients=[secret_number]
+        coefficients.extend(randint(1,topprime-1) for _ in range(k-1))
+        #confirm that the secret is indeed contained as the
+        #constant in the resulting polynomial
+        assert secret_number==evaluate_polynomial(0,coefficients)%topprime
+
+        used_xvals=[]
+        found_yvals=[]
+
+        for i in range(n):
+            xval=randint(1,topprime-1)
+            while xval in used_xvals:
+                #theoretically can be infinite, maybe do something about that,
+                #call needs to be malfromed for that to happen though
+                xval=randint(1,topprime-1)
+            used_xvals.append(xval)
+            found_yvals.append(evaluate_polynomial(xval,coefficients)%topprime)
+        #add the shares
+        print('charactershares length before append:',len(charactershares))
+        charactershares.append([(used_xvals[i],found_yvals[i]) for i in range(n)])
+        print('charactershares length after append:',len(charactershares))
+    #charactershares now contains len(S) lists of n shares each
+    #each share is now a list of tuples, one for each letter of the secret message
+    
+    shares=[ list(map(lambda x:x[i],charactershares)) for i in range(n)]
+    
+    
+
+    #shares has n lists, each containing len(S) tuples, which are one users keys for each byte
+    return topprime,shares
+
+#takes in shares in the same format as get_shares outputs
+#outputs the secret string
+def combine_byte_shares(k,n,p,shares):
+    charactershares= [ [shares[k][i] for k in range(len(shares))] for i in range(len(shares[1]))]
+    if len(shares)<k:
+    #not enough shares
+        return
+    message=''
+    #each run through this loop produces another character of the secret
+    for byteshares in charactershares:
+        xvals=[x[0] for x in byteshares]
+        yvals=[x[1] for x in byteshares]
+        secretsum=0
+        for j in range(k):
+            numerator=yvals[j]
+            denominator=1
+            for l in range(k):
+                if l!=j:
+                    numerator=(numerator*xvals[l])%p
+                    denominator=(denominator*(xvals[l]-xvals[j]))%p
+            secretsum+=divmod(numerator,denominator,p)
+
+        message=message+(chr(secretsum%p))
+
+    return message
 
 
+
+#for creating secret shares of number only
+#S is an int here
 def get_shares(k,n,S,prime=None):
 
     if prime is None:
@@ -64,6 +145,7 @@ def divmod(a,b,p):
     return a*t_prev
 
 def prime_sieve(limit):
+    #stolen from stackexchange, well known problem of little interest
     a = [True] * limit  # Initialize the primality list
     a[0] = a[1] = False
     output=[]
@@ -94,26 +176,7 @@ def combine(k,n,p,shares):
         secretsum+=divmod(numerator,denominator,p)
     return secretsum%p
 
-            
-    #the below should be equivalent to the above arithmetic
-    denominators=[yvals[j]*reduce
-                 (
-                    lambda x,y: x*y,
-                    [xvals[i] for i in range(k) if i!=j]
-                 )
-                for j in range(k)
-                ]
-    divisors = [ reduce(
-                            lambda x,y: x*y,
-                            [xvals[i]-xvals[j] for i in range(k) if i!=j]
-                       )
-                for j in range(k)
-                ]
-    secretsum=sum([divmod(denominators[i],divisors[i],p) for i in range(k)])
-
-    return secretsum%p
-        
-testsecret=9001
+testsecret=921
 
 testprime=13
 print(5*divmod(3,5,testprime) % testprime)
@@ -121,8 +184,15 @@ p,shares=get_shares(3,5,testsecret)
 for share in shares:
     print(share)
 
+print('testing numeric secret sharer')
 combinedsecret=combine(3,5,p,shares)
 print('original secret was:',testsecret)
 print('extracted secret was:',combinedsecret)
 
-    
+testsecret="hello world!" 
+p,shares=get_byte_shares(3,5,testsecret)
+print('testing string secret sharer')
+print('len(shares):',len(shares))
+combinedsecret=combine_byte_shares(3,5,p,shares)
+print('original secret was:',testsecret)
+print('extracted secret was:',combinedsecret)
