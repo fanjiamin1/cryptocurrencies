@@ -1,4 +1,3 @@
-import random
 import threading
 import time
 import sys
@@ -9,7 +8,7 @@ from hashlib import sha256 as Hash
 from Blockchain import Block, Blockchain
 
 
-# Import rot 13 this without printing to stdout
+# Import "rot 13 this" without printing to stdout
 from io import StringIO
 actual_stdout = sys.stdout
 sys.stdout = StringIO()
@@ -39,7 +38,13 @@ interference_flag = threading.Event()
 interfered = []  # total interfered messages
 
 
+#
+# Blockchain or block related functions and variables
+#
+
+
 def pretty_blockchain(bc):
+    """Function that does a slightly "pretty printed" string repr of a blockchain."""
     result = ["Blockchain at {}\n".format(id(bc))]
     index = 0
     for block in bc:
@@ -53,6 +58,35 @@ def pretty_blockchain(bc):
         result.append("...\n")
         index += 1
     return "".join(result)
+
+
+def increment_counter(byte_array_counter):
+    index = -1
+    while True:
+        try:
+            byte_array_counter[index] += 1
+            return
+        except ValueError:
+            byte_array_counter[index] = 0
+            index -= 1
+        except IndexError:
+            # Counter overflow!
+            for i in range(byte_array_counter):
+                byte_array_counter[i] = 0
+            return
+
+
+def counter_value(byte_array_counter):
+    result = 0
+    for b in byte_array_counter:
+        result <<= 8  # Byte size
+        result += b
+    return result
+
+
+#
+# Thread communication functions and variables
+#
 
 
 def broadcast(own_miner_id, byte_array):
@@ -86,13 +120,18 @@ def read_socket(miner_id):
         return None
 
 
+#
+# A miner, and his slave (Thrall) that is sent to do work
+#
+
+
 class Thrall(threading.Thread):
     def __init__(self, hash_ptr_digest, prehash_components, difficulty):
         self.difficulty = difficulty
 
         # Prehash
         self.prehash = Hash(hash_ptr_digest)
-        filter(self.prehash.update, prehash_components)  # Lol @ readability
+        filter(self.prehash.update, prehash_components)
 
         # Other attributes
         self.stopped = False
@@ -112,26 +151,23 @@ class Thrall(threading.Thread):
         return nonce, digest
 
     def _trailing_zero_count(self, some_bytes):
-        bit_str = bin(int(some_bytes.hex(), 16))
-        return len(bit_str) - len(bit_str.rstrip('0'))
-        ## Alternative, maybe faster?
-        #index = 1
-        #total = 0
-        #mask = 1
-        #while True:
-        #    b = some_bytes[-index]
-        #    if b == 0:
-        #        total += 8
-        #        if index == len(some_bytes):
-        #            return total
-        #        index += 1
-        #    else:
-        #        for value in range(8):
-        #            if b & mask != 0:
-        #                total += value
-        #                return total
-        #            else:
-        #                mask *= 2
+        index = 1
+        total = 0
+        mask = 1
+        while True:
+            b = some_bytes[-index]
+            if b == 0:
+                total += 8
+                if index == len(some_bytes):
+                    return total
+                index += 1
+            else:
+                for value in range(8):
+                    if b & mask != 0:
+                        total += value
+                        return total
+                    else:
+                        mask *= 2
 
     def run(self):
         while not self.stopped:
@@ -295,13 +331,8 @@ if __name__ == "__main__":
             screen = []
             screen.append(PREAMBLE.format(total_miners, DIFFICULTY))
             screen.append("\n")
-            N = 8  # Two less than the number of blocks to show
-            slice_index = sum(len(bcs.blockchain) for bcs in miners)//total_miners - N - 1
-            screen.append("Showing last ")
-            screen.append(str(N+2))
-            screen.append(" blocks of chains")
-            screen.append("\n")
-            screen.append("B:  9  8  7  6  5  4  3  2  1  0\n")
+            N = 24
+            slice_index = max(len(bcs.blockchain) for bcs in miners) - N
             for miner_id in miner_ids:
                 mbc = miners[miner_id].blockchain[(0 if slice_index < 0 else slice_index):]
                 screen.append(str(miner_id))
@@ -322,16 +353,6 @@ if __name__ == "__main__":
             print("".join(screen))
             refresh_flag.wait()
             refresh_flag.clear()
-#        while True:
-#            os.system('cls' if os.name == 'nt' else 'clear')
-#            for miner_id in miner_ids:
-#                mbc = miners[miner_id].blockchain
-#                b = len(mbc) > 10
-#                print(miner_id,": ", "..." if b else "", end="", sep="")
-#                for block in mbc[-(9 if b else 10):]:
-#                    print("[", repr(block.hash_pointer[0]%10), "]", sep="", end="")
-#                print()
-#            time.sleep(DIFFICULTY/30)  # So bad
     except:
         print()
         print("Simulation over, stopping participants")
