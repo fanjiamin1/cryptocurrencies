@@ -1,12 +1,17 @@
-from random import randint
+from random import randint,choice
 from functools import reduce
 
 
 
-def get_shares(k,n,S):
+def get_shares(k,n,S,prime=None):
 
+    if prime is None:
     #TODO: make big prime P as a basis for working in Zp
-    topprime=10009
+        candidates=list(filter(lambda x:x>S,prime_sieve(S*10)))
+        #candidates are all primes between S and 10S
+        topprime=choice(candidates)
+    else:
+        topprime=prime
     
     #want to create a polynomial of degree k-1 so we need k constants
     #we dissallow coefficients of 0 for simplicity, we must avoid zero in
@@ -58,8 +63,16 @@ def divmod(a,b,p):
     #return a*s_prev or return a*t_prev
     return a*t_prev
 
-
-    
+def prime_sieve(limit):
+    a = [True] * limit  # Initialize the primality list
+    a[0] = a[1] = False
+    output=[]
+    for (i, isprime) in enumerate(a):
+        if isprime:
+            output.append(i)
+            for n in range(i*i, limit, i):     # Mark factors non-prime
+                a[n] = False
+    return output
 
 
 
