@@ -1,2 +1,1 @@
-from .secretsharing import *
-#import .secretsharing as sesh
+from .secret_sharing import Polynomial, Shamir
