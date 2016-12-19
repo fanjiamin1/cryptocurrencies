@@ -93,18 +93,34 @@ if __name__ == "__main__":
     command = args[1]
     if command == "create":
         minimum_required = int(args[2])
-        keys_wanted = int(args[3])
-        file_name = args[4]
+        shares_wanted = int(args[3])
+        shares_directory = args[4]
         message = args[5]
-        assert not os.path.exists(file_name)
-        with open(file_name, "w") as share_file:
-            for character in message:
-                secret = ord(character)
-                shamir = Shamir(minimum_required, secret)
-                for _ in range(keys_wanted):
-                    share_file.write(repr(shamir.get_share()))
-                share_file.write("\n")
+        os.mkdir(shares_directory)
+        shamirs = [Shamir(minimum_required, ord(character))
+                   for character in message]
+        for number in range(shares_wanted):
+            file_name = os.path.join(shares_directory, "share" + str(number))
+            share_list = [shamir.get_share() for shamir in shamirs]
+            print(share_list)
+            with open(file_name, "wb") as share_file:
+                pickle.dump(share_list, share_file)
     elif command == "extract":
-        pass
+        shares_directory = args[2]
+        shares_lists = []
+        for entry in os.scandir(shares_directory):
+            if entry.is_file():
+                file_name = os.path.join(shares_directory, entry.name)
+                with open(file_name, "rb") as share_file:
+                    shares_lists.append(pickle.load(share_file))
+        assert shares_lists, "No shares loaded"
+        # Make sure all shares are of same length
+        shares_list_length = len(shares_lists[0])
+        assert all(len(shares_list) == shares_list_length for shares_list in shares_lists), "Share length mismatch"
+        result = []
+        for index in range(shares_list_length):
+            shares = [shares_list[index] for shares_list in shares_lists]
+            result.append(chr(Shamir.extract_secret(shares)))
+        print("".join(result))
     else:
         print("Unrecognized command")
