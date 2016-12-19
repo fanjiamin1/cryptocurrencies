@@ -25,108 +25,37 @@ from this import s as rot_13_this
 sys.stdout = actual_stdout
 
 
-#
-# Simulation specific Block and Blockchain inheriting from generic implementations
-#
-
-
-class SimulationBlock(Block):
-    FILL_CHARACTER = b"#"
-    def __init__(self, hash_pointer, time, document, counter, difficulty, nonce):
-        payload = SimulationBlock.join_components(
-                                                   time
-                                                 , document
-                                                 , counter
-                                                 , difficulty
-                                                 , nonce
-                                                 )
-        super(SimulationBlock, self).__init__(hash_pointer, payload)
-
-    @classmethod
-    def genesis_block(cls, difficulty=0):
-        hash_pointer = b"\x17"*cls.HASH_POINTER_SIZE
-        genesis_time = time.ctime(1000198000).encode()
-        document = rot_13_this.encode()
-        # 32 byte counter starting from zero
-        counter = bytes(32)
-        # 1 byte representing difficulty of work
-        difficulty = bytes([difficulty])
-        # And then there is space of 16 bytes for nonce
-        nonce = b"\x17"*16
-        return cls(hash_pointer, genesis_time, document, counter, difficulty, nonce)
-
-    @staticmethod
-    def join_components(time, document, counter, difficulty, nonce):
-        block_time = time.ljust(
-                                 SimulationBlock.HASH_POINTER_SIZE
-                               , SimulationBlock.FILL_CHARACTER
-                               )
-        return b"".join((block_time, document, counter, difficulty, nonce))
-
-    @staticmethod
-    def increment_counter(byte_array_counter):
-        index = -1
-        while True:
-            try:
-                byte_array_counter[index] += 1
-                return
-            except ValueError:
-                byte_array_counter[index] = 0
-                index -= 1
-            except IndexError:
-                # Counter overflow!
-                for i in range(byte_array_counter):
-                    byte_array_counter[i] = 0
-                return
-
-    @staticmethod
-    def counter_value(byte_array_counter):
-        result = 0
-        for b in byte_array_counter:
-            result <<= 8  # Byte size
-            result += b
-        return result
-
-
-class SimulationBlockchain(Blockchain):
-    def pretty(self):
-        """Method that gives a slightly "pretty printed" string representation."""
-        result = ["SimulationBlockchain at {}\n".format(id(self))]
-        index = 0
-        for block in self:
-            result.append("\t")
-            result.append("Block {}\n".format(index))
-            result.append("\t\t")
-            result.append(repr(block.hash_pointer[:16]))
-            result.append("...\n")
-            result.append("\t\t")
-            result.append(repr(block.payload[:32]))
-            result.append("...\n")
-            index += 1
-        return "".join(result)
+# Milliseconds since epoch function that might not be portable
+def get_ms_since_epoch():
+    return int(time.time()*1000)
 
 
 class Slave(threading.Thread):
-    def __init__(self, master, hash_pointer_digest, prehash_components, difficulty):
+    """A slave thread that looks for a nonce that gives difficulty-many zero bits."""
+    def __init__(self, master, base_hash, difficulty):
         self.master = master
         self.difficulty = difficulty
-
-        # Prehash
-        self.prehash = Hash(hash_pointer_digest)
-        filter(self.prehash.update, prehash_components)
+        self.base_hash = base_hash
 
         # Other attributes
         self.stopped = False
-        self.found = False
         self.result = None
 
         super(Slave, self).__init__()
 
+    def run(self):
+        while not self.stopped:
+            nonce, digest = self._hash()
+            if self._trailing_zero_count(digest) >= self.difficulty:
+                self.result = (nonce, digest)
+                self.master.notify()
+                return
+
     def stop(self):
         self.stopped = True
 
-    def hash(self):
-        temp_hash = self.prehash.copy()
+    def _hash(self):
+        temp_hash = self.base_hash.copy()
         nonce = os.urandom(16)
         temp_hash.update(nonce)
         digest = temp_hash.digest()
@@ -151,61 +80,76 @@ class Slave(threading.Thread):
                     else:
                         mask *= 2
 
-    def run(self):
-        while not self.stopped:
-            nonce, digest = self.hash()
-            if self._trailing_zero_count(digest) >= self.difficulty:
-                self.result = (nonce, digest)
-                self.found = True
-                self.master.notify()
-                return
-
 
 class Miner(threading.Thread):
     def __init__(self, id_number, supervisor):
         self.id_number = id_number
         self.supervisor = supervisor
-        self.mailbox_lock = threading.Lock()
         self.mailbox = collections.deque()
+        self.mailbox_lock = threading.Lock()
         self.notification = threading.Event()
         self.stopped = False
         super(Miner, self).__init__()
 
     def run(self):
+        # Get initial blockchain from mailbox
+        self.blockchain = pickle.loads(self.read_mail())
+
+        # Construct miner payload comment
+        comment = b"I, miner number "
+        comment += bytes([ord(str(self.id_number))])
+        comment += b" did this!"
+
+        # Wait for supervisor's go signal
+        self.supervisor.starting_line.wait()
+
+        # Start mining!
         while True:
-            message = read_socket(self.id_number)
-            if message is None:
-                continue
-            else:
-                self.blockchain = pickle.loads(message)
-                if not isinstance(self.blockchain, Blockchain):
-                    print("Surprising junk on mah socket, bby")
-                    continue
-                break
-        barrier.wait()
-        payload_comment = b"I, miner number "
-        payload_comment += bytes([ord(str(self.id_number))])
-        payload_comment += b" did this!"
-        payload_comment = payload_comment.ljust(DOCSIZE, FILLCHAR)
-        while not self.stopped:
-            # Do some work that the slave can't be trusted to do
+
+            # Create new block miner wants on chain
+
             latest_block = self.blockchain.latest_block
+
             hash_pointer = Hash()
             hash_pointer.update(latest_block.hash_pointer)
             hash_pointer.update(latest_block.payload)
-            payload_components = []
-            payload_components.append(time.ctime().encode().ljust(Block.HASH_POINTER_SIZE, FILLCHAR))
-            payload_components.append(payload_comment)
-            old_counter = latest_block.payload[-17-32:-17]
-            assert len(old_counter) == 32
-            payload_components.append(old_counter)  # TODO
+            hash_pointer = hash_pointer.digest()
+
+            block_time = get_ms_since_epoch()
+
+            old_counter = latest_block.counter
+            new_counter = SimulationBlock.increment_counter(old_counter)
+
             difficulty = latest_block.payload[-16-1:-16]
-            assert len(difficulty) == 1
-            assert difficulty[0] == DIFFICULTY
-            payload_components.append(difficulty)
+
+            # Calculate base hash (note filter hack)
+            base_hash = Hash()
+            components = [
+                           hash_pointer
+                         , block_time
+                         , comment
+                         , new_counter
+                         , difficulty
+                         ]
+            filter(base_hash.update, components)
+
             # Create new slave to find good nonce
-            self.slave = Slave(self, hash_pointer.digest(), payload_components, difficulty[0])
+            self.slave = Slave(self, base_hash, difficulty[0])
             self.slave.start()
+
+            while True:
+                # Wait for notification from:
+                #  - Slave having found nonce
+                #  - Supervisor stopping the "gold rush"/mining
+                #  - Other miners sending messages
+                self.wait()
+
+                # Waiting on notifications
+                # Check if supervisor announced stop
+                if self.stopped:
+                    break
+
+            # Do some work that the slave can't be trusted to do
             while True:
                 if self.stopped:
                     break
@@ -257,25 +201,33 @@ class Miner(threading.Thread):
 
     def stop(self):
         self.stopped = True
+        self.notify()
 
-    def message(self, message_bytes):
+    def mail(self, message_bytes):
         with self.mailbox_lock:
             self.mailbox.append(message_bytes)
+            self.notify()
 
-    def has_message(self):
+    def has_mail(self):
         # False if mailbox is empty, else True
         return bool(self.mailbox)
 
-    def read_message(self):
+    def read_mail(self):
         with self.mailbox_lock:
             return self.mailbox.popleft()
 
     def notify(self):
         self.notification.set()
 
+    def wait(self):
+        # Wait for notification
+        self.notification.wait()
+        # Clear notification flag
+        self.notification.clear()
+
 
 class Simulation(threading.Thread):
-    STR = "Simulation of {:d} miners:\nDifficulty {:d}\nMessage interference rate: {:f}"
+    STR = "Simulation of {:d} miners:\nDifficulty: {:d}\nMessage interference rate: {:f}"
     def __init__(self, total_miners, difficulty, interference_rate=0.1):
         self.total_miners = total_miners
         self.difficulty = difficulty
@@ -299,7 +251,7 @@ class Simulation(threading.Thread):
         # Broadcast genesis blockchain without interference
         block = SimulationBlock.genesis_block(self.difficulty)
         blockchain = SimulationBlockchain(block)
-        broadcast(pickle.dumps(blockchain), interference=False)
+        self.broadcast(pickle.dumps(blockchain), interference=False)
 
         # Starting line for miners
         self.starting_line = threading.Barrier(total_miners + 1)
@@ -308,7 +260,7 @@ class Simulation(threading.Thread):
         for miner in self.miners:
             miner.start()
 
-        starting_line.wait()  # Start mining once all miners ready
+        self.starting_line.wait()  # Start mining once all miners ready
 
         self.stop_event.wait()
 
@@ -326,10 +278,9 @@ class Simulation(threading.Thread):
                     continue
                 elif interference and random.randint(0, 100) <= 100*self.interference_rate:
                     # Use random to determine whether or not to "accidentally" drop message
-                    miner.messages_lost += 1
                     self.interference_count += 1
                 else:
-                    miner.message(message_bytes)
+                    miner.mail(message_bytes)
             self.broadcast_count += 1
 
 
@@ -355,6 +306,15 @@ def main_curses(stdscr, total_miners, difficulty):
         simulation.stop()
 
 
+def main_no_curses(total_miners, difficulty):
+    simulation = Simulation(total_miners, difficulty)
+    print(simulation)
+    try:
+        simulation.run()
+    except KeyboardInterrupt:
+        simulation.stop()
+
+
 if __name__ == "__main__":
     args = sys.argv[1:]
     try:
@@ -366,9 +326,11 @@ if __name__ == "__main__":
         sys.exit()
 
     if CURSES:
-        curses.wrapper(main_curses, total_miners, difficulty)
+        #curses.wrapper(main_curses, total_miners, difficulty)
+        main_no_curses(total_miners, difficulty)
     else:
-        print("curses library not present")
+        main_no_curses(total_miners, difficulty)
+
 
     sys.exit()
 
