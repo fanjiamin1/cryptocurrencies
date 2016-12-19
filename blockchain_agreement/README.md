@@ -1,5 +1,7 @@
 # blockchain_agreement
 
+Usage:
+
 ```
-python simulation.py 4 20
+python simulation.py total_miners difficulty
 ```

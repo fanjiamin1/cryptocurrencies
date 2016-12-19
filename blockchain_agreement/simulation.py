@@ -296,7 +296,6 @@ def main_no_curses(total_miners, difficulty):
     simulation = Simulation(total_miners, difficulty)
     try:
         simulation.start()
-        
         # Display miners' progress
         os.system('cls' if os.name == 'nt' else 'clear')
         while True:
