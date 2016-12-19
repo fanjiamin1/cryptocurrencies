@@ -53,5 +53,5 @@ Alice can also send Bob tasks with the _task_ keyword, e.g.:
 task: hugo+ivar+ragnar 22
 ```
 
-which would send Bob on a quest to find a 16 byte suffix to the 16 prefix bytes of "hugo+ivar+ragnar" such that the two hash together into a hash that ends with at least 22 zero bits.
+which would send Bob on a quest to find a 16 byte suffix to the 16 prefix bytes of "hugo+ivar+ragnar" such that the two hash together into a digest that ends with at least 22 zero bits.
 Note that the prefix must be exactly 16 character bytes.
