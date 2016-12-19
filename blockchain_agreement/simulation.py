@@ -39,7 +39,7 @@ class Slave(threading.Thread):
         while not self.stopped:
             nonce, digest = self._hash()
             if self._trailing_zero_count(digest) >= self.difficulty:
-                self.result = (nonce, digest)
+                self.result = nonce
                 self.master.notify()
                 return
 
@@ -77,8 +77,9 @@ class Miner(threading.Thread):
     def __init__(self, id_number, supervisor):
         self.id_number = id_number
         self.supervisor = supervisor
+        self.blockchain = None
         self.mailbox = collections.deque()
-        self.mailbox_lock = threading.Lock()
+        self.mailbox_lock = threading.RLock()  # Reentrant so can take and read entire box
         self.notification = threading.Event()
         self.stopped = False
         super(Miner, self).__init__()
@@ -94,14 +95,14 @@ class Miner(threading.Thread):
         self.supervisor.starting_line.wait()
 
         # Start mining!
-        while True:
+        while not self.stopped:
 
             # Create new block miner wants on chain
 
             # Get latest block
             latest_block = self.blockchain.latest_block
             # Create hash pointer for block
-            hash_pointer = latest_block.hash()
+            hash_pointer = latest_block.hash().digest()
             # Get milliseconds for block
             time_stamp = get_ms_since_epoch()
             # At this point the comment should be gotten, but it has already been made
@@ -130,63 +131,51 @@ class Miner(threading.Thread):
 
             while True:
                 # Wait for notification from:
-                #  - Slave having found nonce
                 #  - Supervisor stopping the "gold rush"/mining
                 #  - Other miners sending messages
+                #  - Slave having found nonce
                 self.wait()
 
-                # Waiting on notifications
                 # Check if supervisor announced stop
                 if self.stopped:
                     break
 
-            # Do some work that the slave can't be trusted to do
-            while True:
-                if self.stopped:
-                    break
-                if sockets[self.id_number]:
-                    # Some message waiting on socket! Should read
-                    message = read_socket(self.id_number)
-                    if message is None:
-                        continue
-                    received_blockchain = pickle.loads(message)
-                    try:
-                        received_blockchain.verify()
-                        if received_blockchain.genesis_block != self.blockchain.genesis_block:
-                            raise RuntimeError  # lol
-                    except RuntimeError:
-                        print("Miner", self.id_number, "received bogus blockchain")
-                        continue
-                    if len(received_blockchain) > len(self.blockchain):
-                        assert self.blockchain != received_blockchain
-                        self.blockchain = received_blockchain
-                        refresh_flag.set()
+                # Read mail
+                if self.has_mail():
+                    with self.mailbox_lock:
+                        blockchain_replaced = False
+                        while self.has_mail():
+                            # Read messages
+                            message = self.read_mail()
+                            received_blockchain = pickle.loads(message)
+                            if len(received_blockchain) > len(self.blockchain):
+                                # Take up blockchain if bigger
+                                self.blockchain = received_blockchain
+                                blockchain_replaced = True
+                        if blockchain_replaced:
+                            self.supervisor.refresh.set()
+                            break
+
+                # Check on slave
+                if not self.slave.is_alive():
+                    # Slave has found nonce!
+                    self.slave.join()
+                    if self.stopped:
                         break
-                    else:
-                        # Ignore smaller blockchain; size matters!
-                        pass
-                else:
-                    pass  # No messages for miner...
-                if self.slave.found is True:
-                    # Found nonce! Should try to get block on chain!
-                    self.slave.stop()
-                    nonce = self.slave.result[0]
-                    payload_components.append(nonce)
-                    payload = b"".join(payload_components)
-                    if len(payload) != Block.PAYLOAD_SIZE:
-                        print(len(nonce))
-                        print(len(payload))
-                        print(payload)
-                        print("Component lengths:")
-                        for c in payload_components:
-                            print("\t", len(c), ":", c)
-                    self.blockchain.append(payload)
-                    broadcast(self.id_number, pickle.dumps(self.blockchain))
-                    refresh_flag.set()
+                    block = Block(
+                                   hash_pointer
+                                 , time_stamp
+                                 , comment
+                                 , new_counter
+                                 , difficulty
+                                 , self.slave.result
+                                 )
+                    self.blockchain.append(block)
+                    self.blockchain.verify()
+                    self.supervisor.refresh.set()
+                    self.supervisor.broadcast(pickle.dumps(self.blockchain), exclude=self)
                     break
-                else:
-                    pass  # Did not find good nonce yet...
-            # Kill slave despite his efforts
+            # Take care of the slave
             self.slave.stop()
             self.slave.join()
 
@@ -220,7 +209,7 @@ class Miner(threading.Thread):
 
 class Simulation(threading.Thread):
     STR = "Simulation of {:d} miners:\nDifficulty: {:d}\nMessage interference rate: {:f}"
-    def __init__(self, total_miners, difficulty, interference_rate=0.1):
+    def __init__(self, total_miners, difficulty, interference_rate=0.3):
         self.total_miners = total_miners
         self.difficulty = difficulty
         self.miners = []
@@ -230,11 +219,16 @@ class Simulation(threading.Thread):
         # Communication variables
         self.broadcast_lock = threading.RLock()
         self.broadcast_count = 0
-        self.interfered_count = 0
+        self.interference_count = 0
         self.interference_rate = interference_rate
+
+        # Refreshing display event
+        self.refresh = threading.Event()
 
         # Thread running variables
         self.stop_event = threading.Event()
+
+        super(Simulation, self).__init__()
 
     def __str__(self):
         return Simulation.STR.format(self.total_miners, self.difficulty, self.interference_rate)
@@ -290,7 +284,7 @@ def main_curses(stdscr, total_miners, difficulty):
     stdscr.refresh()
 
     try:
-        simulation.run()
+        simulation.start()
     except KeyboardInterrupt:
         stdscr.clear()
         stdscr.addstr(0, 0, "Halting simulation...")
@@ -300,11 +294,36 @@ def main_curses(stdscr, total_miners, difficulty):
 
 def main_no_curses(total_miners, difficulty):
     simulation = Simulation(total_miners, difficulty)
-    print(simulation)
     try:
-        simulation.run()
+        simulation.start()
+        
+        # Display miners' progress
+        os.system('cls' if os.name == 'nt' else 'clear')
+        while True:
+            screen = []
+            screen.append(str(simulation))
+            screen.append("\n")
+            N = 24
+            slice_index = max(len(bcs.blockchain) for bcs in simulation.miners) - N
+            for miner_id in range(len(simulation.miners)):
+                mbc = simulation.miners[miner_id].blockchain[(0 if slice_index < 0 else slice_index):]
+                screen.append(str(miner_id))
+                screen.append(": ")
+                for block in mbc:
+                    screen.append("[")
+                    screen.append(repr(block.hash_pointer[0]%10))
+                    screen.append("]")
+                screen.append("\n")
+            os.system('cls' if os.name == 'nt' else 'clear')
+            print("".join(screen))
+            simulation.refresh.wait()
+            simulation.refresh.clear()
     except KeyboardInterrupt:
         simulation.stop()
+        print()
+        print("Simulation over, stopping participants")
+    except:
+        raise  # TODO
 
 
 if __name__ == "__main__":
@@ -322,45 +341,3 @@ if __name__ == "__main__":
         main_no_curses(total_miners, difficulty)
     else:
         main_no_curses(total_miners, difficulty)
-
-
-    sys.exit()
-
-    # TODO: Implement the below code into non-curses displaying
-
-    # Display miners' progress
-    try:
-        os.system('cls' if os.name == 'nt' else 'clear')
-        while True:
-            screen = []
-            screen.append(PREAMBLE.format(total_miners, DIFFICULTY))
-            screen.append("\n")
-            N = 24
-            slice_index = max(len(bcs.blockchain) for bcs in miners) - N
-            for miner_id in miner_ids:
-                mbc = miners[miner_id].blockchain[(0 if slice_index < 0 else slice_index):]
-                screen.append(str(miner_id))
-                screen.append(": ")
-                for block in mbc:
-                    screen.append("[")
-                    screen.append(repr(block.hash_pointer[0]%10))
-                    screen.append("]")
-                screen.append("\n")
-            screen.append("Interfered messages:")
-            screen.append("\n")
-            for miner_id in miner_ids:
-                screen.append(str(miner_id))
-                screen.append(": ")
-                screen.append(str(interfered[miner_id]).rjust(4, " "))
-                screen.append("\n")
-            os.system('cls' if os.name == 'nt' else 'clear')
-            print("".join(screen))
-            refresh_flag.wait()
-            refresh_flag.clear()
-    except:
-        print()
-        print("Simulation over, stopping participants")
-
-    for miner in miners:
-        miner.stop()
-        miner.join()

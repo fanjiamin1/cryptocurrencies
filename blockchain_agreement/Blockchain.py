@@ -41,6 +41,7 @@ class Block(BlockBaseClass):
             message = "'{}' object is not bytes/bytearray"
             message = message.format(type(hash_pointer).__name__)
             raise TypeError(message)
+        assert len(hash_pointer) == Block.HASH_POINTER_SIZE
         return _tuple.__new__(_cls, (
                                       hash_pointer
                                     , time_stamp
@@ -54,21 +55,22 @@ class Block(BlockBaseClass):
     def genesis_block(cls, difficulty=0):
         hash_pointer = b"\x17"*cls.HASH_POINTER_SIZE
         genesis_time = 1000198000*1000
-        document = rot_13_this.encode()
+        document = rot_13_this
         counter = 0
         difficulty = difficulty
         nonce = b"\x17"*16
         return cls(hash_pointer, genesis_time, document, counter, difficulty, nonce)
 
     def hash(self):
+        """Return hash object for block."""
         hash_object = Hash()
         hash_object.update(self.hash_pointer)
-        hash_object.update(str(self.block_time).encode())
+        hash_object.update(str(self.time_stamp).encode())
         hash_object.update(self.comment.encode())
         hash_object.update(str(self.counter).encode())
         hash_object.update(str(self.difficulty).encode())
         hash_object.update(self.nonce)
-        return hash_object.digest()
+        return hash_object
 
 
 class Blockchain:
@@ -84,18 +86,18 @@ class Blockchain:
         return self[-1]
 
     def append(self, block):
-        if block.hash_pointer != self.latest_block.hash():
+        if block.hash_pointer != self.latest_block.hash().digest():
             raise ValueError("Illegal block hash pointer")
         self.blocks.append(block)
 
     def verify(self):
         last_hash = self.genesis_block.hash_pointer
         for index, block in enumerate(self):
-            if block.hash_pointer != last_hash or block.counter_value != index:
+            if block.hash_pointer != last_hash or block.counter != index:
                 message = "Block chain integrity compromise at index {:d}"
-                message.format(index)
+                message = message.format(index)
                 raise RuntimeError(message)
-            last_hash = block.hash()
+            last_hash = block.hash().digest()
 
     def __str__(self):
         result = [repr(block) for block in self]
