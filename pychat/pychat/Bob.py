@@ -3,9 +3,9 @@ import sys
 import hashlib
 
 
-from pychat.crypto import AES as Cipher
-from pychat.crypto.work import hash_work as work
-from pychat.misc.encoding_tools import ENCODING
+from .crypto import AES as Cipher
+from .crypto.work import hash_work as work
+from .misc.encoding_tools import ENCODING
 
 
 HOST = ""
@@ -20,6 +20,7 @@ class Bob:
         self.socket.bind((HOST, port))
 
     def start(self):
+        PREAMBLE = "!!!"
         try:
             while 1:
                 print("Started listening...")
@@ -30,22 +31,31 @@ class Bob:
                     data = connection.recv(1024)
                     if not data:
                         break
-                    data = self.cipher.decrypt(data)
+                    try:
+                        data = self.cipher.decrypt(data)
+                    except UnicodeDecodeError:
+                        print(PREAMBLE, "Received gibberish from Alice", address)
+                        continue
                     split_data = data.split(' ')
-                    if len(split_data) == 2:
-                        print("!!!", "Alice sent me a task!")
+                    if len(split_data) == 3 and split_data[0] == "task:":
+                        print(PREAMBLE, "Alice", address, " sent me a task!")
                         try:
-                            print("!!!", "It looks like this:", split_data)
-                            prefix, bits = split_data
+                            print(PREAMBLE, "It looks like this:", split_data)
+                            _, prefix, bits = split_data
                             bits = int(bits)
                             prefix = bytes(prefix, ENCODING)
+                            print(PREAMBLE, "Prefix:", prefix)
+                            print(PREAMBLE, "Difficulty:", bits)
                             suffix = work(prefix, bits)
-                            print("!!!", "Found suffix:", suffix)
-                            print("!!!", "sha256(prefix+suffix):", hashlib.sha256(prefix+suffix).digest())
+                            print(PREAMBLE, "Found suffix:", suffix)
+                            print(PREAMBLE
+                                 , "sha256(prefix + suffix): ..."
+                                 , hashlib.sha256(prefix + suffix).digest()[-10:]
+                                 )
                         except:
-                            print("!!!", "I failed at the task...")
+                            print(PREAMBLE, "I failed at the task...")
                     else:
-                        print("Alice:", data)
+                        print("Alice {}:".format(address), data)
                 print("She hung up!")
         finally:
             try:
@@ -61,9 +71,12 @@ if __name__ == "__main__":
     try:
         port = int(input("Port: "))
         key = input("Encryption key: ")
-        bob = Bob(port)  # key variable unused
+        bob = Bob(port, key=key) if key else Bob(port)
         bob.start()
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, EOFError):
         print()
         print("Can't get too hung up on Alice...")
+        sys.exit()
+    except:
+        print("Bob is confused...")
         sys.exit()
