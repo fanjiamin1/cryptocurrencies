@@ -114,11 +114,11 @@ class SimulationBlockchain(Blockchain):
 
 
 class Thrall(threading.Thread):
-    def __init__(self, hash_ptr_digest, prehash_components, difficulty):
+    def __init__(self, hash_pointer_digest, prehash_components, difficulty):
         self.difficulty = difficulty
 
         # Prehash
-        self.prehash = Hash(hash_ptr_digest)
+        self.prehash = Hash(hash_pointer_digeshash_pointer_digest
         filter(self.prehash.update, prehash_components)
 
         # Other attributes
@@ -208,9 +208,9 @@ class Miner(threading.Thread):
         while not self.stopped:
             # Do some work that the slave can't be trusted to do
             latest_block = self.blockchain.latest_block
-            hash_ptr = Hash()
-            hash_ptr.update(latest_block.hash_pointer)
-            hash_ptr.update(latest_block.payload)
+            hash_pointer = Hash()
+            hash_pointer.update(latest_block.hash_pointer)
+            hash_pointer.update(latest_block.payload)
             payload_components = []
             payload_components.append(time.ctime().encode().ljust(Block.HASH_POINTER_SIZE, FILLCHAR))
             payload_components.append(payload_comment)
@@ -222,7 +222,7 @@ class Miner(threading.Thread):
             assert difficulty[0] == DIFFICULTY
             payload_components.append(difficulty)
             # Create new slave to find good nonce
-            self.slave = Thrall(hash_ptr.digest(), payload_components, difficulty[0])
+            self.slave = Thrall(hash_pointer.digest(), payload_components, difficulty[0])
             self.slave.start()
             while True:
                 if self.stopped:
