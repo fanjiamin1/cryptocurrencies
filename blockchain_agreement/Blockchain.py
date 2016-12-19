@@ -1,13 +1,10 @@
 from builtins import tuple as _tuple
-from Crypto.Hash.SHA256 import SHA256Hash as SHA256
+from hashlib import sha256 as SHA256
 from collections import namedtuple
 
 
 class Block(namedtuple("BlockBaseClass", ("hash_pointer", "payload"))):
-    ENCODING = "utf-8"
-    BLOCK_SIZE = 2**10  # 1 Kilobyte
     HASH_POINTER_SIZE = 32  # Bytes
-    PAYLOAD_SIZE = BLOCK_SIZE - HASH_POINTER_SIZE
 
     def __new__(_cls, hash_pointer, payload):
         if not isinstance(hash_pointer, (bytes, bytearray)):
@@ -20,14 +17,11 @@ class Block(namedtuple("BlockBaseClass", ("hash_pointer", "payload"))):
             raise ValueError(message)
         if not isinstance(payload, (bytes, bytearray)):
             if isinstance(payload, str):
-                payload = bytearray(payload, Block.ENCODING)
+                payload = payload.encode()
             else:
                 message = "'{}' object is neither bytes/bytearray nor string"
                 message = message.format(type(payload).__name__)
                 raise TypeError(message)
-        if len(payload) != Block.PAYLOAD_SIZE:
-            message = "Incorrect payload size"
-            raise ValueError(message)
         return _tuple.__new__(_cls, (hash_pointer, payload))
 
     def hash(self):
@@ -63,8 +57,9 @@ class Blockchain:
         for index in range(1, len(self)):
             block = chain[index]
             if block.hash_pointer != last_hash:
-                message = "Block chain integrity compromise at index "
-                raise RuntimeError(message + str(index))
+                message = "Block chain integrity compromise at index {:d}"
+                message.format(index)
+                raise RuntimeError(message)
             last_hash = block.hash()
 
     def __str__(self):

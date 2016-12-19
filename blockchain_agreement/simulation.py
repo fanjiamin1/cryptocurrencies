@@ -4,8 +4,17 @@ import sys
 import os
 import pickle
 import collections
+import random
 from hashlib import sha256 as Hash
 from Blockchain import Block, Blockchain
+
+
+# Try to import curses
+try:
+    import curses
+    CURSES = True
+except ImportError:
+    CURSES = False
 
 
 # Import "rot 13 this" without printing to stdout
@@ -16,113 +25,92 @@ from this import s as rot_13_this
 sys.stdout = actual_stdout
 
 
-FILLCHAR = b"#"
-DOCSIZE = Block.PAYLOAD_SIZE - 32 - 32 - 1 - 16
-DIFFICULTY = None
-PREAMBLE = "Simulation of {} miners with difficulty {}"
-INTERFERENCE_EVERY = 2  # Drop a message from a socket every n-th time a miner attempts to read a message
-BROADCAST_INTERFERE_EVERY = 4  # Same but broadcasts
-
-
-# Communication variables
-communication_lock = threading.RLock()
-sockets = []
-miner_ids = []
-miners = []
-read_counter = 0
-broadcast_counter = -1
-
-
-refresh_flag = threading.Event()
-interference_flag = threading.Event()
-interfered = []  # total interfered messages
-
-
 #
-# Blockchain or block related functions and variables
+# Simulation specific Block and Blockchain inheriting from generic implementations
 #
 
 
-def pretty_blockchain(bc):
-    """Function that does a slightly "pretty printed" string repr of a blockchain."""
-    result = ["Blockchain at {}\n".format(id(bc))]
-    index = 0
-    for block in bc:
-        result.append("\t")
-        result.append("Block {}\n".format(index))
-        result.append("\t\t")
-        result.append(repr(block.hash_pointer[:16]))
-        result.append("...\n")
-        result.append("\t\t")
-        result.append(repr(block.payload[:32]))
-        result.append("...\n")
-        index += 1
-    return "".join(result)
+class SimulationBlock(Block):
+    FILL_CHARACTER = b"#"
+    def __init__(self, hash_pointer, time, document, counter, difficulty, nonce):
+        payload = SimulationBlock.join_components(
+                                                   time
+                                                 , document
+                                                 , counter
+                                                 , difficulty
+                                                 , nonce
+                                                 )
+        super(SimulationBlock, self).__init__(hash_pointer, payload)
+
+    @classmethod
+    def genesis_block(cls):
+        hash_pointer = b"\x17"*cls.HASH_POINTER_SIZE
+        genesis_time = time.ctime(1000198000).encode()
+        document = rot_13_this.encode()
+        # 32 byte counter starting from zero
+        counter = bytes(32)
+        # 1 byte representing difficulty of work
+        difficulty = bytes([DIFFICULTY])
+        # And then there is space of 16 bytes for nonce
+        nonce = b"\x17"*16
+        return cls(hash_pointer, genesis_time, document, counter, difficulty, nonce)
+
+    @staticmethod
+    def join_components(time, document, counter, difficulty, nonce):
+        time = time.ljust(
+                           SimulationBlock.HASH_POINTER_SIZE
+                         , SimulationBlock.FILL_CHARACTER
+                         )
+        genesis_payload += rot_13_this.encode()
+        # 32 byte counter starting from zero
+        genesis_payload += bytes(32)
+        # 1 byte representing difficulty of work
+        genesis_payload += bytes([DIFFICULTY])
+        # And then there is space of 16 bytes for nonce
+        genesis_payload += b"\x17"*16
+        genesis_block = Block(b"\x17"*Block.HASH_POINTER_SIZE, genesis_payload)
+
+    @staticmethod
+    def increment_counter(byte_array_counter):
+        index = -1
+        while True:
+            try:
+                byte_array_counter[index] += 1
+                return
+            except ValueError:
+                byte_array_counter[index] = 0
+                index -= 1
+            except IndexError:
+                # Counter overflow!
+                for i in range(byte_array_counter):
+                    byte_array_counter[i] = 0
+                return
+
+    @staticmethod
+    def counter_value(byte_array_counter):
+        result = 0
+        for b in byte_array_counter:
+            result <<= 8  # Byte size
+            result += b
+        return result
 
 
-def increment_counter(byte_array_counter):
-    index = -1
-    while True:
-        try:
-            byte_array_counter[index] += 1
-            return
-        except ValueError:
-            byte_array_counter[index] = 0
-            index -= 1
-        except IndexError:
-            # Counter overflow!
-            for i in range(byte_array_counter):
-                byte_array_counter[i] = 0
-            return
-
-
-def counter_value(byte_array_counter):
-    result = 0
-    for b in byte_array_counter:
-        result <<= 8  # Byte size
-        result += b
-    return result
-
-
-#
-# Thread communication functions and variables
-#
-
-
-def broadcast(own_miner_id, byte_array):
-    global broadcast_counter
-    with communication_lock:
-        if broadcast_counter >= BROADCAST_INTERFERE_EVERY:
-            broadcast_counter = 0
-            for miner_id in miner_ids:
-                interfered[miner_id] += 1
-        else:
-            for miner_id in miner_ids:
-                if miner_id == own_miner_id:
-                    continue
-                sockets[miner_id].append(byte_array)
-            broadcast_counter += 1
-
-
-def read_socket(miner_id):
-    global read_counter
-    try:
-        with communication_lock:
-            message = sockets[miner_id].popleft()
-            read_counter += 1
-            if read_counter >= INTERFERENCE_EVERY:
-                read_counter = 0
-                interfered[miner_id] += 1
-                return None
-            else:
-                return message
-    except IndexError:
-        return None
-
-
-#
-# A miner, and his slave (Thrall) that is sent to do work
-#
+class SimulationBlockchain(Blockchain):
+    def pretty(self):
+        """Method that gives a slightly "pretty printed" string representation."""
+        result = ["SimulationBlockchain at {}\n".format(id(self))]
+        index = 0
+        for block in self:
+            result.append("\t")
+            result.append("Block {}\n".format(index))
+            result.append("\t\t")
+            result.append(repr(block.hash_pointer[:16]))
+            result.append("...\n")
+            result.append("\t\t")
+            result.append(repr(block.payload[:32]))
+            result.append("...\n")
+            index += 1
+        return "".join(result)
 
 
 class Thrall(threading.Thread):
@@ -176,6 +164,23 @@ class Thrall(threading.Thread):
                 self.result = (nonce, digest)
                 self.found = True
                 return
+
+
+# TODO: Integrate into Miner
+def read_socket(miner_id):
+    global read_counter
+    try:
+        with communication_lock:
+            message = sockets[miner_id].popleft()
+            read_counter += 1
+            if read_counter >= INTERFERENCE_EVERY:
+                read_counter = 0
+                interfered[miner_id] += 1
+                return None
+            else:
+                return message
+    except IndexError:
+        return None
 
 
 class Miner(threading.Thread):
@@ -272,32 +277,86 @@ class Miner(threading.Thread):
         self.stopped = True
 
 
+class Simulation(threading.Thread):
+    STR = "Simulation of {:d} miners:\n\tDifficulty {:d}\n\tMessage interference rate: {:f}"
+    def __init__(self, total_miners, difficulty, interference_rate=0.1):
+        self.total_miners = total_miners
+        self.difficulty = difficulty
+        self.miners = []
+        for id_number in range(self.total_miners):
+            self.miners.append(Miner(id_number))
+
+        # Communication variables
+        self.broadcast_lock = threading.RLock()
+        self.broadcast_count = 0
+        self.interfered_count = 0
+        self.interference_rate = interference_rate
+
+    def __str__(self):
+        return Simulation.STR.format(self.total_miners, self.difficulty, self.interference_rate)
+
+    def run(self):
+        # Broadcast genesis blockchain without interference
+        broadcast(pickle.dumps(blockchain), interference=False)
+
+        # Starting line for miners
+        self.starting_line = threading.Barrier(total_miners + 1)
+
+        # Start miners
+        for miner in self.miners:
+            miner.start()
+
+        starting_line.wait()  # Start mining once all miners ready
+
+        while True:
+            pass  # Curses graphix yo
+
+    def broadcast(self, message_bytes, exclude=None, interference=True):
+        with self.broadcast_lock:
+            for miner in self.miners:
+                if miner == exclude:
+                    continue
+                elif interference and random.randint(0, 100) <= 100*self.interference_rate:
+                    # Use random to determine whether or not to "accidentally" drop message
+                    miner.messages_lost += 1
+                    self.interference_count += 1
+                else:
+                    miner.send_message(message_bytes)
+            self.broadcast_count += 1
+
+
+def main_curses(stdscr, total_miners, difficulty):
+    # Clear screen
+    stdscr.clear()
+
+    # Hide cursor
+    curses.curs_set(False)
+
+    # Create simulation
+
+    simulation = Simulation(total_miners, difficulty)
+    stdscr.addstr(0, 0, str(simulation))
+    stdscr.refresh()
+    time.sleep(4)
+
+
 if __name__ == "__main__":
     args = sys.argv[1:]
-    if len(args) != 2:
-        sys.exit()
     try:
+        assert len(args) == 2
         total_miners = int(args[0])
-        DIFFICULTY = int(args[1])
+        difficulty = int(args[1])
     except:
+        print("Usage: {} total_miners difficulty".format(sys.argv[0]))
         sys.exit()
 
-    # Build genesis block
-    # 32 bytes of padding+timestamp
-    genesis_payload = time.ctime(1000198000).encode().ljust(Block.HASH_POINTER_SIZE, FILLCHAR)
-    # Block.PAYLOAD_SIZE-32-32-1-16 bytes of documents+padding
-    genesis_payload += rot_13_this.encode().ljust(DOCSIZE, FILLCHAR)
-    # 32 byte counter starting from zero
-    genesis_payload += bytes(32)
-    # 1 byte representing difficulty of work
-    genesis_payload += bytes([DIFFICULTY])
-    # And then there is space of 16 bytes for nonce
-    genesis_payload += b"\x17"*16
-    #print("---------------------------------------------")
-    #print("GENESIS PAYLOAD (of length {}):".format(len(genesis_payload)))
-    #print(genesis_payload)
-    #print("---------------------------------------------")
-    genesis_block = Block(b"\x17"*Block.HASH_POINTER_SIZE, genesis_payload)
+    if CURSES:
+        curses.wrapper(main_curses, total_miners, difficulty)
+        sys.exit()
+    else:
+        print("curses library not present")
+        sys.exit()
+
 
     # Build the genesis block chain
     blockchain = Blockchain(genesis_block)
@@ -325,6 +384,7 @@ if __name__ == "__main__":
 
     barrier.wait()
 
+    # Display miners' progress
     try:
         os.system('cls' if os.name == 'nt' else 'clear')
         while True:
@@ -359,7 +419,4 @@ if __name__ == "__main__":
 
     for miner in miners:
         miner.stop()
-    for miner in miners:
-        #with open("result-"+time.ctime()+".txt", "a") as f:
-        #    f.write(pretty_blockchain(miner.blockchain))
         miner.join()
