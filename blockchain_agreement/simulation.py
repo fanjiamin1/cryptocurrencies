@@ -43,32 +43,25 @@ class SimulationBlock(Block):
         super(SimulationBlock, self).__init__(hash_pointer, payload)
 
     @classmethod
-    def genesis_block(cls):
+    def genesis_block(cls, difficulty=0):
         hash_pointer = b"\x17"*cls.HASH_POINTER_SIZE
         genesis_time = time.ctime(1000198000).encode()
         document = rot_13_this.encode()
         # 32 byte counter starting from zero
         counter = bytes(32)
         # 1 byte representing difficulty of work
-        difficulty = bytes([DIFFICULTY])
+        difficulty = bytes([difficulty])
         # And then there is space of 16 bytes for nonce
         nonce = b"\x17"*16
         return cls(hash_pointer, genesis_time, document, counter, difficulty, nonce)
 
     @staticmethod
     def join_components(time, document, counter, difficulty, nonce):
-        time = time.ljust(
-                           SimulationBlock.HASH_POINTER_SIZE
-                         , SimulationBlock.FILL_CHARACTER
-                         )
-        genesis_payload += rot_13_this.encode()
-        # 32 byte counter starting from zero
-        genesis_payload += bytes(32)
-        # 1 byte representing difficulty of work
-        genesis_payload += bytes([DIFFICULTY])
-        # And then there is space of 16 bytes for nonce
-        genesis_payload += b"\x17"*16
-        genesis_block = Block(b"\x17"*Block.HASH_POINTER_SIZE, genesis_payload)
+        block_time = time.ljust(
+                                 SimulationBlock.HASH_POINTER_SIZE
+                               , SimulationBlock.FILL_CHARACTER
+                               )
+        return b"".join((block_time, document, counter, difficulty, nonce))
 
     @staticmethod
     def increment_counter(byte_array_counter):
@@ -113,12 +106,13 @@ class SimulationBlockchain(Blockchain):
         return "".join(result)
 
 
-class Thrall(threading.Thread):
-    def __init__(self, hash_pointer_digest, prehash_components, difficulty):
+class Slave(threading.Thread):
+    def __init__(self, master, hash_pointer_digest, prehash_components, difficulty):
+        self.master = master
         self.difficulty = difficulty
 
         # Prehash
-        self.prehash = Hash(hash_pointer_digeshash_pointer_digest
+        self.prehash = Hash(hash_pointer_digest)
         filter(self.prehash.update, prehash_components)
 
         # Other attributes
@@ -126,7 +120,7 @@ class Thrall(threading.Thread):
         self.found = False
         self.result = None
 
-        super(Thrall, self).__init__()
+        super(Slave, self).__init__()
 
     def stop(self):
         self.stopped = True
@@ -163,29 +157,17 @@ class Thrall(threading.Thread):
             if self._trailing_zero_count(digest) >= self.difficulty:
                 self.result = (nonce, digest)
                 self.found = True
+                self.master.notify()
                 return
 
 
-# TODO: Integrate into Miner
-def read_socket(miner_id):
-    global read_counter
-    try:
-        with communication_lock:
-            message = sockets[miner_id].popleft()
-            read_counter += 1
-            if read_counter >= INTERFERENCE_EVERY:
-                read_counter = 0
-                interfered[miner_id] += 1
-                return None
-            else:
-                return message
-    except IndexError:
-        return None
-
-
 class Miner(threading.Thread):
-    def __init__(self, id_number):
+    def __init__(self, id_number, supervisor):
         self.id_number = id_number
+        self.supervisor = supervisor
+        self.mailbox_lock = threading.Lock()
+        self.mailbox = collections.deque()
+        self.notification = threading.Event()
         self.stopped = False
         super(Miner, self).__init__()
 
@@ -222,7 +204,7 @@ class Miner(threading.Thread):
             assert difficulty[0] == DIFFICULTY
             payload_components.append(difficulty)
             # Create new slave to find good nonce
-            self.slave = Thrall(hash_pointer.digest(), payload_components, difficulty[0])
+            self.slave = Slave(self, hash_pointer.digest(), payload_components, difficulty[0])
             self.slave.start()
             while True:
                 if self.stopped:
@@ -276,15 +258,30 @@ class Miner(threading.Thread):
     def stop(self):
         self.stopped = True
 
+    def message(self, message_bytes):
+        with self.mailbox_lock:
+            self.mailbox.append(message_bytes)
+
+    def has_message(self):
+        # False if mailbox is empty, else True
+        return bool(self.mailbox)
+
+    def read_message(self):
+        with self.mailbox_lock:
+            return self.mailbox.popleft()
+
+    def notify(self):
+        self.notification.set()
+
 
 class Simulation(threading.Thread):
-    STR = "Simulation of {:d} miners:\n\tDifficulty {:d}\n\tMessage interference rate: {:f}"
+    STR = "Simulation of {:d} miners:\nDifficulty {:d}\nMessage interference rate: {:f}"
     def __init__(self, total_miners, difficulty, interference_rate=0.1):
         self.total_miners = total_miners
         self.difficulty = difficulty
         self.miners = []
         for id_number in range(self.total_miners):
-            self.miners.append(Miner(id_number))
+            self.miners.append(Miner(id_number, self))
 
         # Communication variables
         self.broadcast_lock = threading.RLock()
@@ -292,11 +289,16 @@ class Simulation(threading.Thread):
         self.interfered_count = 0
         self.interference_rate = interference_rate
 
+        # Thread running variables
+        self.stop_event = threading.Event()
+
     def __str__(self):
         return Simulation.STR.format(self.total_miners, self.difficulty, self.interference_rate)
 
     def run(self):
         # Broadcast genesis blockchain without interference
+        block = SimulationBlock.genesis_block(self.difficulty)
+        blockchain = SimulationBlockchain(block)
         broadcast(pickle.dumps(blockchain), interference=False)
 
         # Starting line for miners
@@ -308,8 +310,14 @@ class Simulation(threading.Thread):
 
         starting_line.wait()  # Start mining once all miners ready
 
-        while True:
-            pass  # Curses graphix yo
+        self.stop_event.wait()
+
+
+    def stop(self):
+        self.stop_event.set()
+        for miner in self.miners:
+            miner.stop()
+            miner.join()
 
     def broadcast(self, message_bytes, exclude=None, interference=True):
         with self.broadcast_lock:
@@ -321,7 +329,7 @@ class Simulation(threading.Thread):
                     miner.messages_lost += 1
                     self.interference_count += 1
                 else:
-                    miner.send_message(message_bytes)
+                    miner.message(message_bytes)
             self.broadcast_count += 1
 
 
@@ -337,7 +345,14 @@ def main_curses(stdscr, total_miners, difficulty):
     simulation = Simulation(total_miners, difficulty)
     stdscr.addstr(0, 0, str(simulation))
     stdscr.refresh()
-    time.sleep(4)
+
+    try:
+        simulation.run()
+    except KeyboardInterrupt:
+        stdscr.clear()
+        stdscr.addstr(0, 0, "Halting simulation...")
+        stdscr.refresh()
+        simulation.stop()
 
 
 if __name__ == "__main__":
@@ -352,37 +367,12 @@ if __name__ == "__main__":
 
     if CURSES:
         curses.wrapper(main_curses, total_miners, difficulty)
-        sys.exit()
     else:
         print("curses library not present")
-        sys.exit()
 
+    sys.exit()
 
-    # Build the genesis block chain
-    blockchain = Blockchain(genesis_block)
-
-    # Barrier for miners
-    barrier = threading.Barrier(total_miners+1)
-    read_counter -= total_miners + 3
-
-    # Create miners
-    for miner_id in range(total_miners):
-        #print("Creating miner", miner_id)
-        sockets.append(collections.deque())
-        interfered.append(0)
-        miner_ids.append(miner_id)
-        miners.append(Miner(miner_id))
-
-    # Broadcast block
-    #print("Broadcasting genesis block in a single block blockchain")
-    broadcast(-1, pickle.dumps(blockchain))
-
-    # Start miners
-    for miner_id in miner_ids:
-        #print("Starting miner", miner_id)
-        miners[miner_id].start()
-
-    barrier.wait()
+    # TODO: Implement the below code into non-curses displaying
 
     # Display miners' progress
     try:
