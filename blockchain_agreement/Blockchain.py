@@ -1,6 +1,15 @@
+import sys
 from builtins import tuple as _tuple
 from hashlib import sha256 as Hash
 from collections import namedtuple
+
+
+# Import "rot 13 this" without printing to stdout
+from io import StringIO
+actual_stdout = sys.stdout
+sys.stdout = StringIO()
+from this import s as rot_13_this
+sys.stdout = actual_stdout
 
 
 BlockBaseClass = namedtuple("BlockBaseClass", (

@@ -17,14 +17,6 @@ except ImportError:
     CURSES = False
 
 
-# Import "rot 13 this" without printing to stdout
-from io import StringIO
-actual_stdout = sys.stdout
-sys.stdout = StringIO()
-from this import s as rot_13_this
-sys.stdout = actual_stdout
-
-
 # Milliseconds since epoch function that might not be portable
 def get_ms_since_epoch():
     return int(time.time()*1000)
@@ -96,9 +88,7 @@ class Miner(threading.Thread):
         self.blockchain = pickle.loads(self.read_mail())
 
         # Construct miner payload comment
-        comment = b"I, miner number "
-        comment += bytes([ord(str(self.id_number))])
-        comment += b" did this!"
+        comment = "I, miner number {:d}, did this!".format(self.id_number)
 
         # Wait for supervisor's go signal
         self.supervisor.starting_line.wait()
@@ -108,33 +98,34 @@ class Miner(threading.Thread):
 
             # Create new block miner wants on chain
 
+            # Get latest block
             latest_block = self.blockchain.latest_block
+            # Create hash pointer for block
+            hash_pointer = latest_block.hash()
+            # Get milliseconds for block
+            time_stamp = get_ms_since_epoch()
+            # At this point the comment should be gotten, but it has already been made
+            # comment = comment
+            # Get new counter by incrementing old counter
+            new_counter = latest_block.counter + 1
+            # Get difficulty from latest block
+            difficulty = latest_block.difficulty
+            # Get nonce, but it is not known yet!
+            no_nonce = b""
 
-            hash_pointer = Hash()
-            hash_pointer.update(latest_block.hash_pointer)
-            hash_pointer.update(latest_block.payload)
-            hash_pointer = hash_pointer.digest()
-
-            block_time = get_ms_since_epoch()
-
-            old_counter = latest_block.counter
-            new_counter = SimulationBlock.increment_counter(old_counter)
-
-            difficulty = latest_block.payload[-16-1:-16]
-
-            # Calculate base hash (note filter hack)
-            base_hash = Hash()
-            components = [
-                           hash_pointer
-                         , block_time
-                         , comment
-                         , new_counter
-                         , difficulty
-                         ]
-            filter(base_hash.update, components)
+            # Calculate base hash
+            no_nonce_block = Block(
+                                    hash_pointer
+                                  , time_stamp
+                                  , comment
+                                  , new_counter
+                                  , difficulty
+                                  , no_nonce
+                                  )
+            base_hash = no_nonce_block.hash()
 
             # Create new slave to find good nonce
-            self.slave = Slave(self, base_hash, difficulty[0])
+            self.slave = Slave(self, base_hash, difficulty)
             self.slave.start()
 
             while True:
@@ -223,6 +214,7 @@ class Miner(threading.Thread):
         # Wait for notification
         self.notification.wait()
         # Clear notification flag
+        # It matters not if it is set in the meantime
         self.notification.clear()
 
 
@@ -249,8 +241,8 @@ class Simulation(threading.Thread):
 
     def run(self):
         # Broadcast genesis blockchain without interference
-        block = SimulationBlock.genesis_block(self.difficulty)
-        blockchain = SimulationBlockchain(block)
+        block = Block.genesis_block(self.difficulty)
+        blockchain = Blockchain(block)
         self.broadcast(pickle.dumps(blockchain), interference=False)
 
         # Starting line for miners
