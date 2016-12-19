@@ -5,7 +5,6 @@ import os
 import pickle
 import collections
 import random
-from hashlib import sha256 as Hash
 from Blockchain import Block, Blockchain
 
 
